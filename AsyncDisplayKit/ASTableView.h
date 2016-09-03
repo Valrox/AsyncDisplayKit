@@ -418,7 +418,7 @@ NS_ASSUME_NONNULL_BEGIN
  * ASTableView currently only supports batch events for tail loads. If you require a head load, consider implementing a
  * UIRefreshControl.
  */
-- (void)tableView:(ASTableView *)tableView willBeginBatchFetchWithContext:(ASBatchContext *)context;
+- (void)tableView:(ASTableView *)tableView willBeginBatchFetchWithContext:(ASBatchContext *)context direction:(ASScrollDirection)scrollDirection;
 
 /**
  * Tell the tableView if batch fetching should begin.
