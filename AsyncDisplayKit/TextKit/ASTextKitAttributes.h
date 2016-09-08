@@ -81,11 +81,6 @@ struct ASTextKitAttributes {
    An array of scale factors in descending order to apply to the text to try to make it fit into a constrained size.
    */
   NSArray *pointSizeScaleFactors;
-  
-  /**
-   An optional delegate for the NSLayoutManager
-   */
-  id<NSLayoutManagerDelegate> layoutManagerDelegate;
 
   /**
    We provide an explicit copy function so we can use aggregate initializer syntax while providing copy semantics for
@@ -105,7 +100,6 @@ struct ASTextKitAttributes {
       shadowOpacity,
       shadowRadius,
       pointSizeScaleFactors,
-      layoutManagerDelegate,
     };
   };
 
@@ -116,7 +110,8 @@ struct ASTextKitAttributes {
     && maximumNumberOfLines == other.maximumNumberOfLines
     && shadowOpacity == other.shadowOpacity
     && shadowRadius == other.shadowRadius
-    && [pointSizeScaleFactors isEqualToArray:other.pointSizeScaleFactors]
+    && (pointSizeScaleFactors == other.pointSizeScaleFactors
+        || [pointSizeScaleFactors isEqualToArray:other.pointSizeScaleFactors])
     && CGSizeEqualToSize(shadowOffset, other.shadowOffset)
     && ASObjectIsEqual(exclusionPaths, other.exclusionPaths)
     && ASObjectIsEqual(avoidTailTruncationSet, other.avoidTailTruncationSet)

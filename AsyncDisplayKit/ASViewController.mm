@@ -15,6 +15,7 @@
 #import "ASAvailability.h"
 #import "ASDisplayNodeInternal.h"
 #import "ASDisplayNode+FrameworkPrivate.h"
+#import "ASLayout.h"
 #import "ASTraitCollection.h"
 #import "ASEnvironmentInternal.h"
 #import "ASRangeControllerUpdateRangeProtocol+Beta.h"
@@ -94,7 +95,19 @@
 - (void)viewWillLayoutSubviews
 {
   [super viewWillLayoutSubviews];
-  [_node measureWithSizeRange:[self nodeConstrainedSize]];
+  
+  // Before layout, make sure that our trait collection containerSize actually matches the size of our bounds.
+  // If not, we need to update the traits and propagate them.
+  if (CGSizeEqualToSize(self.node.environmentTraitCollection.containerSize, self.view.bounds.size) == NO) {
+    [UIView performWithoutAnimation:^{
+      ASEnvironmentTraitCollection environmentTraitCollection = [self environmentTraitCollectionForUITraitCollection:self.traitCollection];
+      environmentTraitCollection.containerSize = self.view.bounds.size;
+      // this method will call measure
+      [self progagateNewEnvironmentTraitCollection:environmentTraitCollection];
+    }];
+  } else {
+    [_node layoutThatFits:[self nodeConstrainedSize]];
+  }
   
   if (!AS_AT_LEAST_IOS9) {
     [self _legacyHandleViewDidLayoutSubviews];
@@ -120,7 +133,7 @@ ASVisibilityDidMoveToParentViewController;
   // We do this early layout because we need to get any ASCollectionNodes etc. into the
   // hierarchy before UIKit applies the scroll view inset adjustments, if you are using
   // automatic subnode management.
-  [_node measureWithSizeRange:[self nodeConstrainedSize]];
+  [_node layoutThatFits:[self nodeConstrainedSize]];
 
   [_node recursivelyFetchData];
   
@@ -274,17 +287,6 @@ ASVisibilityDepthImplementation;
   return asyncTraitCollection;
 }
 
-- (ASEnvironmentTraitCollection)environmentTraitCollectionForWindowSize:(CGSize)windowSize
-{
-  if (self.overrideDisplayTraitsWithWindowSize) {
-    ASTraitCollection *traitCollection = self.overrideDisplayTraitsWithWindowSize(windowSize);
-    return [traitCollection environmentTraitCollection];
-  }
-  ASEnvironmentTraitCollection traitCollection = self.node.environmentTraitCollection;
-  traitCollection.containerSize = windowSize;
-  return traitCollection;
-}
-
 - (void)progagateNewEnvironmentTraitCollection:(ASEnvironmentTraitCollection)environmentTraitCollection
 {
   ASEnvironmentState environmentState = self.node.environmentState;
@@ -301,7 +303,7 @@ ASVisibilityDepthImplementation;
     
     // once we've propagated all the traits, layout this node.
     // Remeasure the node with the latest constrained size – old constrained size may be incorrect.
-    [self.node measureWithSizeRange:[self nodeConstrainedSize]];
+    [self.node layoutThatFits:[self nodeConstrainedSize]];
     [self.node setNeedsLayout];
   }
 }
@@ -312,27 +314,6 @@ ASVisibilityDepthImplementation;
   
   ASEnvironmentTraitCollection environmentTraitCollection = [self environmentTraitCollectionForUITraitCollection:self.traitCollection];
   environmentTraitCollection.containerSize = self.view.bounds.size;
-  [self progagateNewEnvironmentTraitCollection:environmentTraitCollection];
-}
-
-- (void)willTransitionToTraitCollection:(UITraitCollection *)newCollection withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
-{
-  [super willTransitionToTraitCollection:newCollection withTransitionCoordinator:coordinator];
-  
-  ASEnvironmentTraitCollection environmentTraitCollection = ASEnvironmentTraitCollectionFromUITraitCollection(newCollection);
-  // A call to willTransitionToTraitCollection:withTransitionCoordinator: is always followed by a call to viewWillTransitionToSize:withTransitionCoordinator:.
-  // However, it is not immediate and we may need the new trait collection before viewWillTransitionToSize:withTransitionCoordinator: is called. Our view already has the
-  // new bounds, so go ahead and set the containerSize and propagate the traits here. As long as nothing else in the traits changes (which it shouldn't)
-  // then we won't we will skip the propagation in viewWillTransitionToSize:withTransitionCoordinator:.
-  environmentTraitCollection.containerSize = self.view.bounds.size;
-  [self progagateNewEnvironmentTraitCollection:environmentTraitCollection];
-}
-
-- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
-{
-  [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
-  
-  ASEnvironmentTraitCollection environmentTraitCollection = [self environmentTraitCollectionForWindowSize:size];
   [self progagateNewEnvironmentTraitCollection:environmentTraitCollection];
 }
 

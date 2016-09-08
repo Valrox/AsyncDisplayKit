@@ -22,8 +22,9 @@
 {
   CGSize nodeSize = CGSizeMake(100, 100);
   
-  ASStaticSizeDisplayNode *displayNode = [ASStaticSizeDisplayNode new];
-  displayNode.staticSize  = nodeSize;
+  ASDisplayNode *displayNode = [[ASDisplayNode alloc] init];
+  displayNode.width = ASDimensionMake(100);
+  displayNode.height = ASDimensionMake(100);
   
   // Use a button node in here as ASButtonNode uses layoutSpecThatFits:
   ASButtonNode *buttonNode = [ASButtonNode new];
@@ -43,31 +44,6 @@
   ASXCTAssertEqualSizes(buttonNode.calculatedSize, nodeSize, @"Automatic measurement pass should have happened in layout pass");
 }
 
-- (void)testMeasureOnLayoutIfNotHappenedBeforeForRangeManagedNodes
-{
-  CGSize nodeSize = CGSizeMake(100, 100);
-  
-  ASStaticSizeDisplayNode *displayNode = [ASStaticSizeDisplayNode new];
-  displayNode.staticSize  = nodeSize;
-  
-  ASButtonNode *buttonNode = [ASButtonNode new];
-  [displayNode addSubnode:buttonNode];
-  
-  [displayNode enterHierarchyState:ASHierarchyStateRangeManaged];
-  
-  displayNode.frame = {.size = nodeSize};
-  buttonNode.frame = {.size = nodeSize};
-  
-  ASXCTAssertEqualSizes(displayNode.calculatedSize, CGSizeZero, @"Calculated size before measurement and layout should be 0");
-  ASXCTAssertEqualSizes(buttonNode.calculatedSize, CGSizeZero, @"Calculated size before measurement and layout should be 0");
-  
-  // Trigger layout pass without a maeasurment pass before
-  [displayNode.view layoutIfNeeded];
-  
-  ASXCTAssertEqualSizes(displayNode.calculatedSize, nodeSize, @"Automatic measurement pass should have happened in layout pass");
-  ASXCTAssertEqualSizes(buttonNode.calculatedSize, nodeSize, @"Automatic measurement pass should have happened in layout pass");
-}
-
 #if DEBUG
 - (void)testNotAllowAddingSubnodesInLayoutSpecThatFits
 {
@@ -79,7 +55,7 @@
     return [ASInsetLayoutSpec insetLayoutSpecWithInsets:UIEdgeInsetsZero child:someOtherNode];
   };
   
-  XCTAssertThrows([displayNode measure:CGSizeMake(100, 100)], @"Should throw if subnode was added in layoutSpecThatFits:");
+  XCTAssertThrows([displayNode layoutThatFits:ASSizeRangeMake(CGSizeZero, CGSizeMake(100, 100))], @"Should throw if subnode was added in layoutSpecThatFits:");
 }
 
 - (void)testNotAllowModifyingSubnodesInLayoutSpecThatFits
@@ -95,7 +71,7 @@
     return [ASInsetLayoutSpec insetLayoutSpecWithInsets:UIEdgeInsetsZero child:someOtherNode];
   };
   
-  XCTAssertThrows([displayNode measure:CGSizeMake(100, 100)], @"Should throw if subnodes where modified in layoutSpecThatFits:");
+  XCTAssertThrows([displayNode layoutThatFits:ASSizeRangeMake(CGSizeZero, CGSizeMake(100, 100))], @"Should throw if subnodes where modified in layoutSpecThatFits:");
 }
 #endif
 
@@ -103,8 +79,8 @@
 {
   CGSize nodeSize = CGSizeMake(100, 100);
   
-  ASStaticSizeDisplayNode *displayNode = [ASStaticSizeDisplayNode new];
-  displayNode.staticSize  = nodeSize;
+  ASDisplayNode *displayNode = [ASDisplayNode new];
+  [displayNode setSizeWithCGSize:nodeSize];
   
   ASButtonNode *buttonNode = [ASButtonNode new];
   [displayNode addSubnode:buttonNode];
@@ -121,7 +97,7 @@
   [displayNode.view layoutIfNeeded];
   XCTAssertEqual(numberOfLayoutSpecThatFitsCalls, 1, @"Should measure during layout if not measured");
   
-  [displayNode measureWithSizeRange:ASSizeRangeMake(nodeSize, nodeSize)];
+  [displayNode layoutThatFits:ASSizeRangeMake(nodeSize, nodeSize)];
   XCTAssertEqual(numberOfLayoutSpecThatFitsCalls, 1, @"Should not remeasure with same bounds");
 }
 

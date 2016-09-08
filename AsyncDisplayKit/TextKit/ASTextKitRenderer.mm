@@ -100,8 +100,7 @@ static NSCharacterSet *_defaultAvoidTruncationCharacterSet()
                                                     lineBreakMode:attributes.lineBreakMode
                                              maximumNumberOfLines:attributes.maximumNumberOfLines
                                                    exclusionPaths:attributes.exclusionPaths
-                                                  constrainedSize:shadowConstrainedSize
-                                            layoutManagerDelegate:attributes.layoutManagerDelegate];
+                                                  constrainedSize:shadowConstrainedSize];
   }
   return _context;
 }
@@ -115,31 +114,6 @@ static NSCharacterSet *_defaultAvoidTruncationCharacterSet()
     _sizeIsCalculated = YES;
   }
   return _calculatedSize;
-}
-
-- (void)setConstrainedSize:(CGSize)constrainedSize
-{
-  if (!CGSizeEqualToSize(constrainedSize, _constrainedSize)) {
-    _sizeIsCalculated = NO;
-    _constrainedSize = constrainedSize;
-    _calculatedSize = CGSizeZero;
-    
-    // Throw away the all subcomponents to create them with the new constrained size new as well as let the
-    // truncater do it's job again for the new constrained size. This is necessary as after a truncation did happen
-    // the context would use the truncated string and not the original string to truncate based on the new
-    // constrained size
-    __block ASTextKitContext *ctx = _context;
-    __block ASTextKitTailTruncater *tru = _truncater;
-    __block ASTextKitFontSizeAdjuster *adj = _fontSizeAdjuster;
-    _context = nil;
-    _truncater = nil;
-    _fontSizeAdjuster = nil;
-    ASPerformBlockOnDeallocationQueue(^{
-      ctx = nil;
-      tru = nil;
-      adj = nil;
-    });
-  }
 }
 
 - (void)_calculateSize

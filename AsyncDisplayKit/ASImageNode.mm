@@ -14,10 +14,12 @@
 
 #import "_ASDisplayLayer.h"
 #import "ASAssert.h"
+#import "ASDimension.h"
 #import "ASDisplayNode+Subclasses.h"
 #import "ASDisplayNodeInternal.h"
 #import "ASDisplayNodeExtras.h"
 #import "ASDisplayNode+Beta.h"
+#import "ASLayout.h"
 #import "ASTextNode.h"
 #import "ASImageNode+AnimatedImagePrivate.h"
 
@@ -186,13 +188,23 @@ struct ASImageNodeDrawParameters {
 - (CGSize)calculateSizeThatFits:(CGSize)constrainedSize
 {
   ASDN::MutexLocker l(__instanceLock__);
-  // if a preferredFrameSize is set, call the superclass to return that instead of using the image size.
-  if (CGSizeEqualToSize(self.preferredFrameSize, CGSizeZero) == NO)
-    return [super calculateSizeThatFits:constrainedSize];
-  else if (_image)
-    return _image.size;
-  else
-    return CGSizeZero;
+  
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  // If a preferredFrameSize is set, call the superclass to return that instead of using the image size.
+  if (CGSizeEqualToSize(self.preferredFrameSize, CGSizeZero) == NO) {
+#if DEBUG
+    NSLog(@"Using -[ASDisplayNode preferredFrameSize] is deprecated.");
+#endif
+    return self.preferredFrameSize;
+  }
+#pragma clang diagnostic pop
+  
+  if (_image == nil) {
+      return constrainedSize;
+  }
+
+  return _image.size;
 }
 
 #pragma mark - Setter / Getter
@@ -437,15 +449,19 @@ static ASDN::Mutex cacheLock;
   // will do its rounding on pixel instead of point boundaries
   UIGraphicsBeginImageContextWithOptions(key.backingSize, key.isOpaque, 1.0);
   
+  BOOL contextIsClean = YES;
+  
   CGContextRef context = UIGraphicsGetCurrentContext();
   if (context && key.preContextBlock) {
     key.preContextBlock(context);
+    contextIsClean = NO;
   }
   
   // if view is opaque, fill the context with background color
   if (key.isOpaque && key.backgroundColor) {
     [key.backgroundColor setFill];
     UIRectFill({ .size = key.backingSize });
+    contextIsClean = NO;
   }
   
   // iOS 9 appears to contain a thread safety regression when drawing the same CGImageRef on
@@ -460,8 +476,12 @@ static ASDN::Mutex cacheLock;
   // Another option is to have ASDisplayNode+AsyncDisplay coordinate these cases, and share the decoded buffer.
   // Details tracked in https://github.com/facebook/AsyncDisplayKit/issues/1068
   
-  @synchronized(key.image) {
-    [key.image drawInRect:key.imageDrawRect];
+  UIImage *image = key.image;
+  BOOL canUseCopy = (contextIsClean || ASImageAlphaInfoIsOpaque(CGImageGetAlphaInfo(image.CGImage)));
+  CGBlendMode blendMode = canUseCopy ? kCGBlendModeCopy : kCGBlendModeNormal;
+  
+  @synchronized(image) {
+    [image drawInRect:key.imageDrawRect blendMode:blendMode alpha:1];
   }
   
   if (context && key.postContextBlock) {
@@ -637,7 +657,7 @@ static ASDN::Mutex cacheLock;
   
   if (_debugLabelNode) {
     CGSize boundsSize        = self.bounds.size;
-    CGSize debugLabelSize    = [_debugLabelNode measure:boundsSize];
+    CGSize debugLabelSize    = [_debugLabelNode layoutThatFits:ASSizeRangeMake(CGSizeZero, boundsSize)].size;
     CGPoint debugLabelOrigin = CGPointMake(boundsSize.width - debugLabelSize.width,
                                            boundsSize.height - debugLabelSize.height);
     _debugLabelNode.frame    = (CGRect) {debugLabelOrigin, debugLabelSize};

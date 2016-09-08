@@ -27,10 +27,7 @@
                            lineBreakMode:(NSLineBreakMode)lineBreakMode
                     maximumNumberOfLines:(NSUInteger)maximumNumberOfLines
                           exclusionPaths:(NSArray *)exclusionPaths
-                         constrainedSize:(CGSize)constrainedSize
-                   layoutManagerDelegate:(id<NSLayoutManagerDelegate>)layoutManagerDelegate;
-
-@property (nonatomic, assign, readwrite) CGSize constrainedSize;
+                         constrainedSize:(CGSize)constrainedSize;
 
 /**
  All operations on TextKit values MUST occur within this locked context.  Simultaneous access (even non-mutative) to

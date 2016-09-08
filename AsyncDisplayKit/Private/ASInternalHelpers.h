@@ -9,7 +9,6 @@
 //
 
 #import <UIKit/UIKit.h>
-#import <CoreGraphics/CGBase.h>
 
 #import <AsyncDisplayKit/ASBaseDefines.h>
 
@@ -39,6 +38,17 @@ CGFloat ASCeilPixelValue(CGFloat f);
 CGFloat ASRoundPixelValue(CGFloat f);
 
 ASDISPLAYNODE_EXTERN_C_END
+
+ASDISPLAYNODE_INLINE BOOL ASImageAlphaInfoIsOpaque(CGImageAlphaInfo info) {
+  switch (info) {
+    case kCGImageAlphaNone:
+    case kCGImageAlphaNoneSkipLast:
+    case kCGImageAlphaNoneSkipFirst:
+      return YES;
+    default:
+      return NO;
+  }
+}
 
 /**
  @summary Conditionally performs UIView geometry changes in the given block without animation.
