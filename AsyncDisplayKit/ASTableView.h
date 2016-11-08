@@ -431,7 +431,7 @@ NS_ASSUME_NONNULL_BEGIN
  * If not implemented, the tableView assumes that it should notify its asyncDelegate when batch fetching
  * should occur.
  */
-- (BOOL)shouldBatchFetchForTableView:(ASTableView *)tableView;
+- (BOOL)shouldBatchFetchForTableView:(ASTableView *)tableView scrollDirection:(ASScrollDirection)scrollDirection;
 
 /**
  * Provides the constrained size range for measuring the row at the index path.

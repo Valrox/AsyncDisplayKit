@@ -334,7 +334,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
     _asyncDelegateFlags.asyncDelegateTableViewDidEndDisplayingNodeForRowAtIndexPathDeprecated = [_asyncDelegate respondsToSelector:@selector(tableView:didEndDisplayingNodeForRowAtIndexPath:)];
     _asyncDelegateFlags.asyncDelegateScrollViewWillEndDraggingWithVelocityTargetContentOffset = [_asyncDelegate respondsToSelector:@selector(scrollViewWillEndDragging:withVelocity:targetContentOffset:)];
     _asyncDelegateFlags.asyncDelegateTableViewWillBeginBatchFetchWithContext = [_asyncDelegate respondsToSelector:@selector(tableView:willBeginBatchFetchWithContext:direction:)];
-    _asyncDelegateFlags.asyncDelegateShouldBatchFetchForTableView = [_asyncDelegate respondsToSelector:@selector(shouldBatchFetchForTableView:)];
+    _asyncDelegateFlags.asyncDelegateShouldBatchFetchForTableView = [_asyncDelegate respondsToSelector:@selector(shouldBatchFetchForTableView:scrollDirection:)];
     _asyncDelegateFlags.asyncDelegateScrollViewWillBeginDragging = [_asyncDelegate respondsToSelector:@selector(scrollViewWillBeginDragging:)];
     _asyncDelegateFlags.asyncDelegateScrollViewDidEndDragging = [_asyncDelegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)];
     _asyncDelegateFlags.asyncDelegateTableViewConstrainedSizeForRowAtIndexPath = [_asyncDelegate respondsToSelector:@selector(tableView:constrainedSizeForRowAtIndexPath:)];
@@ -798,12 +798,12 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   return _batchContext;
 }
 
-- (BOOL)canBatchFetch
+- (BOOL)canBatchFetch:(ASScrollDirection)scrollDirection
 {
   // if the delegate does not respond to this method, there is no point in starting to fetch
   BOOL canFetch = _asyncDelegateFlags.asyncDelegateTableViewWillBeginBatchFetchWithContext;
   if (canFetch && _asyncDelegateFlags.asyncDelegateShouldBatchFetchForTableView) {
-    return [_asyncDelegate shouldBatchFetchForTableView:self];
+    return [_asyncDelegate shouldBatchFetchForTableView:self scrollDirection:scrollDirection];
   } else {
     return canFetch;
   }
