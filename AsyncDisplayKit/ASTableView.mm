@@ -404,9 +404,9 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
     _asyncDelegateFlags.tableNodeDidEndDisplayingNodeForRow = [_asyncDelegate respondsToSelector:@selector(tableNode:didEndDisplayingRowWithNode:)];
     _asyncDelegateFlags.scrollViewWillEndDragging = [_asyncDelegate respondsToSelector:@selector(scrollViewWillEndDragging:withVelocity:targetContentOffset:)];
     _asyncDelegateFlags.tableViewWillBeginBatchFetch = [_asyncDelegate respondsToSelector:@selector(tableView:willBeginBatchFetchWithContext:)];
-    _asyncDelegateFlags.tableNodeWillBeginBatchFetch = [_asyncDelegate respondsToSelector:@selector(tableNode:willBeginBatchFetchWithContext:)];
+    _asyncDelegateFlags.tableNodeWillBeginBatchFetch = [_asyncDelegate respondsToSelector:@selector(tableNode:willBeginBatchFetchWithContext:direction:)];
     _asyncDelegateFlags.shouldBatchFetchForTableView = [_asyncDelegate respondsToSelector:@selector(shouldBatchFetchForTableView:)];
-    _asyncDelegateFlags.shouldBatchFetchForTableNode = [_asyncDelegate respondsToSelector:@selector(shouldBatchFetchForTableNode:)];
+    _asyncDelegateFlags.shouldBatchFetchForTableNode = [_asyncDelegate respondsToSelector:@selector(shouldBatchFetchForTableNode:direction:)];
     _asyncDelegateFlags.scrollViewWillBeginDragging = [_asyncDelegate respondsToSelector:@selector(scrollViewWillBeginDragging:)];
     _asyncDelegateFlags.scrollViewDidEndDragging = [_asyncDelegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)];
     _asyncDelegateFlags.tableViewConstrainedSizeForRow = [_asyncDelegate respondsToSelector:@selector(tableView:constrainedSizeForRowAtIndexPath:)];
@@ -1152,13 +1152,13 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   return _batchContext;
 }
 
-- (BOOL)canBatchFetch
+- (BOOL)canBatchFetchWithDirection:(ASScrollDirection)scrollDirection
 {
   // if the delegate does not respond to this method, there is no point in starting to fetch
   BOOL canFetch = _asyncDelegateFlags.tableNodeWillBeginBatchFetch || _asyncDelegateFlags.tableViewWillBeginBatchFetch;
   if (canFetch && _asyncDelegateFlags.shouldBatchFetchForTableNode) {
     GET_TABLENODE_OR_RETURN(tableNode, NO);
-    return [_asyncDelegate shouldBatchFetchForTableNode:tableNode];
+    return [_asyncDelegate shouldBatchFetchForTableNode:tableNode direction:scrollDirection];
   } else if (canFetch && _asyncDelegateFlags.shouldBatchFetchForTableView) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -1196,17 +1196,17 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 - (void)_beginBatchFetchingIfNeededWithContentOffset:(CGPoint)contentOffset
 {
   if (ASDisplayShouldFetchBatchForScrollView(self, self.scrollDirection, ASScrollDirectionVerticalDirections, contentOffset)) {
-    [self _beginBatchFetching];
+    [self _beginBatchFetchingWithDirection:self.scrollDirection];
   }
 }
 
-- (void)_beginBatchFetching
+- (void)_beginBatchFetchingWithDirection:(ASScrollDirection)scrollDirection
 {
   [_batchContext beginBatchFetching];
   if (_asyncDelegateFlags.tableNodeWillBeginBatchFetch) {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
       GET_TABLENODE_OR_RETURN(tableNode, (void)0);
-      [_asyncDelegate tableNode:tableNode willBeginBatchFetchWithContext:_batchContext];
+      [_asyncDelegate tableNode:tableNode willBeginBatchFetchWithContext:_batchContext direction:scrollDirection];
     });
   } else if (_asyncDelegateFlags.tableViewWillBeginBatchFetch) {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
