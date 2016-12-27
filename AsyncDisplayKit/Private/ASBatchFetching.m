@@ -13,7 +13,7 @@
 BOOL ASDisplayShouldFetchBatchForScrollView(UIScrollView<ASBatchFetchingScrollView> *scrollView, ASScrollDirection scrollDirection, ASScrollDirection scrollableDirections, CGPoint contentOffset)
 {
   // Don't fetch if the scroll view does not allow
-  if (![scrollView canBatchFetch]) {
+  if (![scrollView canBatchFetchScrollDirection:scrollDirection]) {
     return NO;
   }
   

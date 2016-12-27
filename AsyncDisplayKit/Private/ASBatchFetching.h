@@ -17,7 +17,7 @@ ASDISPLAYNODE_EXTERN_C_BEGIN
 
 @protocol ASBatchFetchingScrollView <NSObject>
 
-- (BOOL)canBatchFetch;
+- (BOOL)canBatchFetchScrollDirection:(ASScrollDirection)scrollDirection;
 - (ASBatchContext *)batchContext;
 - (CGFloat)leadingScreensForBatching;
 

@@ -554,7 +554,8 @@ NS_ASSUME_NONNULL_BEGIN
  * ASTableView currently only supports batch events for tail loads. If you require a head load, consider implementing a
  * UIRefreshControl.
  */
-- (void)tableNode:(ASTableNode *)tableNode willBeginBatchFetchWithContext:(ASBatchContext *)context;
+//- (void)tableNode:(ASTableNode *)tableNode willBeginBatchFetchWithContext:(ASBatchContext *)context;
+- (void)tableNode:(ASTableNode *)tableNode willBeginBatchFetchWithContext:(ASBatchContext *)context scrollDirection:(ASScrollDirection)scrollDirection;
 
 /**
  * Tell the tableView if batch fetching should begin.
@@ -567,7 +568,8 @@ NS_ASSUME_NONNULL_BEGIN
  * If not implemented, the tableView assumes that it should notify its asyncDelegate when batch fetching
  * should occur.
  */
-- (BOOL)shouldBatchFetchForTableNode:(ASTableNode *)tableNode;
+//- (BOOL)shouldBatchFetchForTableNode:(ASTableNode *)tableNode;
+- (BOOL)shouldBatchFetchForTableNode:(ASTableNode *)tableNode scrollDirection:(ASScrollDirection)scrollDirection;
 
 /**
  * Informs the delegate that the table view will add the given node
