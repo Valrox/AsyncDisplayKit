@@ -3,9 +3,9 @@ Pod::Spec.new do |spec|
   spec.version      = '2.0.1'
   spec.license      =  { :type => 'BSD' }
   spec.homepage     = 'http://asyncdisplaykit.org'
-  spec.authors      = { 'Scott Goodson' => 'scottgoodson@gmail.com' }
+  spec.authors      = { 'Anton Malygin' => 'ai.malygin@icloud.com' }
   spec.summary      = 'Smooth asynchronous user interfaces for iOS apps.'
-  spec.source       = { :git => 'https://github.com/facebook/AsyncDisplayKit.git', :tag => spec.version.to_s }
+  spec.source       = { :git => 'https://github.com/aimalygin/AsyncDisplayKit.git', :tag => spec.version.to_s }
 
   spec.documentation_url = 'http://asyncdisplaykit.org/appledoc/'
 
@@ -29,11 +29,11 @@ Pod::Spec.new do |spec|
 	'AsyncDisplayKit/TextKit/ASTextNodeTypes.h',
         'AsyncDisplayKit/TextKit/ASTextKitComponents.h'
     ]
-    
+
     core.source_files = [
         'AsyncDisplayKit/**/*.{h,m,mm}',
         'Base/*.{h,m}',
-      
+
         # Most TextKit components are not public because the C++ content
         # in the headers will cause build errors when using
         # `use_frameworks!` on 0.39.0 & Swift 2.1.
@@ -41,14 +41,14 @@ Pod::Spec.new do |spec|
         'AsyncDisplayKit/TextKit/*.h',
     ]
   end
-  
+
   spec.subspec 'PINRemoteImage' do |pin|
       pin.xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) PIN_REMOTE_IMAGE=1' }
       pin.dependency 'PINRemoteImage/iOS', '= 3.0.0-beta.7'
       pin.dependency 'PINRemoteImage/PINCache'
       pin.dependency 'AsyncDisplayKit/Core'
   end
-  
+
   # Include optional PINRemoteImage module
   spec.default_subspec = 'PINRemoteImage'
 
