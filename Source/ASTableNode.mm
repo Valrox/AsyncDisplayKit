@@ -1,16 +1,23 @@
 //
 //  ASTableNode.mm
-//  AsyncDisplayKit
-//
-//  Created by Steven Ramkumar on 11/4/15.
+//  Texture
 //
 //  Copyright (c) 2014-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
-//  LICENSE file in the root directory of this source tree. An additional grant
-//  of patent rights can be found in the PATENTS file in the same directory.
+//  LICENSE file in the /ASDK-Licenses directory of this source tree. An additional
+//  grant of patent rights can be found in the PATENTS file in the same directory.
+//
+//  Modifications to this file made after 4/13/2017 are: Copyright (c) 2017-present,
+//  Pinterest, Inc.  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #import <AsyncDisplayKit/ASTableNode.h>
+#import <AsyncDisplayKit/ASTableNode+Beta.h>
+
 #import <AsyncDisplayKit/ASCollectionElement.h>
 #import <AsyncDisplayKit/ASElementMap.h>
 #import <AsyncDisplayKit/ASTableViewInternal.h>
@@ -35,6 +42,8 @@
 @property (nonatomic, assign) BOOL allowsMultipleSelection;
 @property (nonatomic, assign) BOOL allowsMultipleSelectionDuringEditing;
 @property (nonatomic, assign) BOOL inverted;
+@property (nonatomic, assign) CGFloat leadingScreensForBatching;
+@property (nonatomic, assign) BOOL automaticallyAdjustsContentOffset;
 @end
 
 @implementation _ASTablePendingState
@@ -48,6 +57,8 @@
     _allowsMultipleSelection = NO;
     _allowsMultipleSelectionDuringEditing = NO;
     _inverted = NO;
+    _leadingScreensForBatching = 2;
+    _automaticallyAdjustsContentOffset = NO;
   }
   return self;
 }
@@ -59,13 +70,10 @@
 @interface ASTableNode ()
 {
   ASDN::RecursiveMutex _environmentStateLock;
+  id<ASBatchFetchingDelegate> _batchFetchingDelegate;
 }
 
 @property (nonatomic, strong) _ASTablePendingState *pendingState;
-@end
-
-@interface ASTableView ()
-- (instancetype)_initWithFrame:(CGRect)frame style:(UITableViewStyle)style dataControllerClass:(Class)dataControllerClass;
 @end
 
 @implementation ASTableNode
@@ -79,7 +87,7 @@
     [self setViewBlock:^{
       // Variable will be unused if event logging is off.
       __unused __typeof__(self) strongSelf = weakSelf;
-      return [[ASTableView alloc] _initWithFrame:CGRectZero style:style dataControllerClass:nil eventLog:ASDisplayNodeGetEventLog(strongSelf)];
+      return [[ASTableView alloc] _initWithFrame:CGRectZero style:style dataControllerClass:nil owningNode:strongSelf eventLog:ASDisplayNodeGetEventLog(strongSelf)];
     }];
   }
   return self;
@@ -126,16 +134,18 @@
   [self.rangeController clearContents];
 }
 
-- (void)didExitPreloadState
-{
-  [super didExitPreloadState];
-  [self.rangeController clearPreloadedData];
-}
-
 - (void)interfaceStateDidChange:(ASInterfaceState)newState fromState:(ASInterfaceState)oldState
 {
   [super interfaceStateDidChange:newState fromState:oldState];
   [ASRangeController layoutDebugOverlayIfNeeded];
+}
+
+- (void)didEnterPreloadState
+{
+  // Intentionally allocate the view here so that super will trigger a layout pass on it which in turn will trigger the intial data load.
+  // We can get rid of this call later when ASDataController, ASRangeController and ASCollectionLayout can operate without the view.
+  [self view];
+  [super didEnterPreloadState];
 }
 
 #if ASRangeControllerLoggingEnabled
@@ -151,6 +161,12 @@
   NSLog(@"%@ - visible: NO", self);
 }
 #endif
+
+- (void)didExitPreloadState
+{
+  [super didExitPreloadState];
+  [self.rangeController clearPreloadedData];
+}
 
 #pragma mark Setter / Getter
 
@@ -192,6 +208,48 @@
     return _pendingState.inverted;
   } else {
     return self.view.inverted;
+  }
+}
+
+- (void)setLeadingScreensForBatching:(CGFloat)leadingScreensForBatching
+{
+  _ASTablePendingState *pendingState = self.pendingState;
+  if (pendingState) {
+    pendingState.leadingScreensForBatching = leadingScreensForBatching;
+  } else {
+    ASDisplayNodeAssert(self.nodeLoaded, @"ASTableNode should be loaded if pendingState doesn't exist");
+    self.view.leadingScreensForBatching = leadingScreensForBatching;
+  }
+}
+
+- (CGFloat)leadingScreensForBatching
+{
+  _ASTablePendingState *pendingState = self.pendingState;
+  if (pendingState) {
+    return pendingState.leadingScreensForBatching;
+  } else {
+    return self.view.leadingScreensForBatching;
+  }
+}
+
+- (void)setAutomaticallyAdjustsContentOffset:(BOOL)automaticallyAdjustsContentOffset
+{
+  _ASTablePendingState *pendingState = self.pendingState;
+  if (pendingState) {
+    pendingState.automaticallyAdjustsContentOffset = automaticallyAdjustsContentOffset;
+  } else {
+    ASDisplayNodeAssert(self.nodeLoaded, @"ASTableNode should be loaded if pendingState doesn't exist");
+    self.view.automaticallyAdjustsContentOffset = automaticallyAdjustsContentOffset;
+  }
+}
+
+- (BOOL)automaticallyAdjustsContentOffset
+{
+  _ASTablePendingState *pendingState = self.pendingState;
+  if (pendingState) {
+    return pendingState.automaticallyAdjustsContentOffset;
+  } else {
+    return self.view.automaticallyAdjustsContentOffset;
   }
 }
 
@@ -324,6 +382,16 @@
   } else {
     return self.view.allowsMultipleSelectionDuringEditing;
   }
+}
+
+- (void)setBatchFetchingDelegate:(id<ASBatchFetchingDelegate>)batchFetchingDelegate
+{
+  _batchFetchingDelegate = batchFetchingDelegate;
+}
+
+- (id<ASBatchFetchingDelegate>)batchFetchingDelegate
+{
+  return _batchFetchingDelegate;
 }
 
 #pragma mark ASRangeControllerUpdateRangeProtocol

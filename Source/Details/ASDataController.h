@@ -1,11 +1,18 @@
 //
 //  ASDataController.h
-//  AsyncDisplayKit
+//  Texture
 //
 //  Copyright (c) 2014-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
-//  LICENSE file in the root directory of this source tree. An additional grant
-//  of patent rights can be found in the PATENTS file in the same directory.
+//  LICENSE file in the /ASDK-Licenses directory of this source tree. An additional
+//  grant of patent rights can be found in the PATENTS file in the same directory.
+//
+//  Modifications to this file made after 4/13/2017 are: Copyright (c) 2017-present,
+//  Pinterest, Inc.  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -27,10 +34,12 @@ NS_ASSUME_NONNULL_BEGIN
 #endif
 
 @class ASCellNode;
+@class ASCollectionElement;
 @class ASDataController;
 @class ASElementMap;
-@class ASCollectionElement;
+@class ASLayout;
 @class _ASHierarchyChangeSet;
+@protocol ASRangeManagingNode;
 @protocol ASTraitEnvironment;
 @protocol ASSectionContext;
 
@@ -52,11 +61,6 @@ extern NSString * const ASCollectionInvalidUpdateException;
 - (ASCellNodeBlock)dataController:(ASDataController *)dataController nodeBlockAtIndexPath:(NSIndexPath *)indexPath;
 
 /**
- The constrained size range for layout.
- */
-- (ASSizeRange)dataController:(ASDataController *)dataController constrainedSizeForNodeAtIndexPath:(NSIndexPath *)indexPath;
-
-/**
  Fetch the number of rows in specific section.
  */
 - (NSUInteger)dataController:(ASDataController *)dataController rowsInSection:(NSUInteger)section;
@@ -67,11 +71,17 @@ extern NSString * const ASCollectionInvalidUpdateException;
 - (NSUInteger)numberOfSectionsInDataController:(ASDataController *)dataController;
 
 /**
- Returns if the collection element size matches a given size
+ Returns if the collection element size matches a given size.
+ @precondition The element is present in the data controller's visible map.
  */
 - (BOOL)dataController:(ASDataController *)dataController presentedSizeForElement:(ASCollectionElement *)element matchesSize:(CGSize)size;
 
 @optional
+
+/**
+ The constrained size range for layout. Called only if collection layout delegate is not provided.
+ */
+- (ASSizeRange)dataController:(ASDataController *)dataController constrainedSizeForNodeAtIndexPath:(NSIndexPath *)indexPath;
 
 - (NSArray<NSString *> *)dataController:(ASDataController *)dataController supplementaryNodeKindsInSections:(NSIndexSet *)sections;
 
@@ -79,15 +89,12 @@ extern NSString * const ASCollectionInvalidUpdateException;
 
 - (ASCellNodeBlock)dataController:(ASDataController *)dataController supplementaryNodeBlockOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath;
 
+/**
+ The constrained size range for layout. Called only if no data controller layout delegate is provided.
+ */
 - (ASSizeRange)dataController:(ASDataController *)dataController constrainedSizeForSupplementaryNodeOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath;
 
 - (nullable id<ASSectionContext>)dataController:(ASDataController *)dataController contextForSection:(NSInteger)section;
-
-@end
-
-@protocol ASDataControllerEnvironmentDelegate
-
-- (nullable id<ASTraitEnvironment>)dataControllerEnvironment;
 
 @end
 
@@ -113,6 +120,33 @@ extern NSString * const ASCollectionInvalidUpdateException;
 
 @end
 
+@protocol ASDataControllerLayoutDelegate <NSObject>
+
+/**
+ * @abstract Returns a layout context needed for a coming layout pass with the given elements.
+ * The context should contain the elements and any additional information needed.
+ *
+ * @discussion This method will be called on main thread.
+ */
+- (id)layoutContextWithElements:(ASElementMap *)elements;
+
+/**
+ * @abstract Prepares in advance a new layout with the given context.
+ *
+ * @param context A context that was previously returned by `-layoutContextWithElements:`.
+ *
+ * @discussion This method is called ahead of time, i.e before the underlying collection/table view is aware of the provided elements.
+ * As a result, this method should rely solely on the given context and should not reach out to its collection/table view for information regarding items.
+ *
+ * @discussion This method will be called on background theads. It must be thread-safe and should not change any internal state of the conforming object.
+ * It's recommended to put the resulting layouts of this method into a thread-safe cache that can be looked up later on.
+ *
+ * @discussion This method must block its calling thread. It can dispatch to other theads to reduce blocking time.
+ */
+- (void)prepareLayoutWithContext:(id)context;
+
+@end
+
 /**
  * Controller to layout data in background, and managed data updating.
  *
@@ -122,17 +156,30 @@ extern NSString * const ASCollectionInvalidUpdateException;
  */
 @interface ASDataController : NSObject
 
-- (instancetype)initWithDataSource:(id<ASDataControllerSource>)dataSource eventLog:(nullable ASEventLog *)eventLog NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithDataSource:(id<ASDataControllerSource>)dataSource node:(nullable id<ASRangeManagingNode>)node eventLog:(nullable ASEventLog *)eventLog NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/**
+ * The node that owns this data controller, if any.
+ *
+ * NOTE: Soon we will drop support for using ASTableView/ASCollectionView without the node, so this will be non-null.
+ */
+@property (nonatomic, nullable, weak, readonly) id<ASRangeManagingNode> node;
 
 /**
  * The map that is currently displayed. The "UIKit index space."
+ *
+ * This property will only be changed on the main thread.
  */
-@property (nonatomic, strong, readonly) ASElementMap *visibleMap;
+@property (atomic, copy, readonly) ASElementMap *visibleMap;
 
 /**
  * The latest map fetched from the data source. May be more recent than @c visibleMap.
+ *
+ * This property will only be changed on the main thread.
  */
-@property (nonatomic, strong, readonly) ASElementMap *pendingMap;
+@property (atomic, copy, readonly) ASElementMap *pendingMap;
 
 /**
  Data source for fetching data info.
@@ -150,9 +197,9 @@ extern NSString * const ASCollectionInvalidUpdateException;
 @property (nonatomic, weak) id<ASDataControllerDelegate> delegate;
 
 /**
- *
+ * Delegate for preparing layouts. Main thead only.
  */
-@property (nonatomic, weak) id<ASDataControllerEnvironmentDelegate> environmentDelegate;
+@property (nonatomic, weak) id<ASDataControllerLayoutDelegate> layoutDelegate;
 
 #ifdef __cplusplus
 /**
@@ -193,7 +240,7 @@ extern NSString * const ASCollectionInvalidUpdateException;
 - (void)relayoutAllNodes;
 
 /**
- * Re-measures given noades in the backing store.
+ * Re-measures given nodes in the backing store.
  *
  * @discussion Used to respond to setNeedsLayout calls in ASCellNode
  */

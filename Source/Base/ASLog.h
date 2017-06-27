@@ -1,12 +1,21 @@
 //
 //  ASLog.h
-//  AsyncDisplayKit
+//  Texture
 //
 //  Copyright (c) 2014-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
-//  LICENSE file in the root directory of this source tree. An additional grant
-//  of patent rights can be found in the PATENTS file in the same directory.
+//  LICENSE file in the /ASDK-Licenses directory of this source tree. An additional
+//  grant of patent rights can be found in the PATENTS file in the same directory.
 //
+//  Modifications to this file made after 4/13/2017 are: Copyright (c) 2017-present,
+//  Pinterest, Inc.  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+
+#import <AsyncDisplayKit/ASAvailability.h>
 
 #pragma once
 
@@ -18,7 +27,7 @@
 #define ASMultiplexImageNodeCLogError(...)
 
 // Note: `<sys/kdebug_signpost.h>` only exists in Xcode 8 and later.
-#if defined(PROFILE) && __has_include("<sys/kdebug_signpost.h>")
+#if defined(PROFILE) && __has_include(<sys/kdebug_signpost.h>)
 
 #import <sys/kdebug_signpost.h>
 
@@ -27,6 +36,7 @@
 // It's valuable to support trace signposts on iOS 9, because A5 devices don't support iOS 10.
 #ifndef DBG_MACH_CHUD
 #define DBG_MACH_CHUD 0x0A
+#define DBG_FUNC_NONE 0
 #define DBG_FUNC_START 1
 #define DBG_FUNC_END 2
 #define DBG_APPS 33
