@@ -164,6 +164,8 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)imageNodeDidFinishDecoding:(ASNetworkImageNode *)imageNode;
 
+- (void)imageNode:(ASNetworkImageNode *)imageNode downloadProgress:(double)progress;
+
 @end
 
 NS_ASSUME_NONNULL_END

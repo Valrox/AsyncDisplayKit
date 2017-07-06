@@ -550,11 +550,14 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
       ASDN::MutexLocker l(__instanceLock__);
       url = _URL;
     }
-    
+    __weak __typeof__(self) weakSelf = self;
     downloadIdentifier = [_downloader downloadImageWithURL:url
                                              callbackQueue:dispatch_get_main_queue()
-                                          downloadProgress:NULL
-                                                completion:^(id <ASImageContainerProtocol> _Nullable imageContainer, NSError * _Nullable error, id  _Nullable downloadIdentifier) {
+                                          downloadProgress:^(CGFloat progress) {
+                                            if ([weakSelf.delegate respondsToSelector:@selector(imageNode:downloadProgress:)]) {
+                                              [weakSelf.delegate imageNode:weakSelf downloadProgress:progress];
+                                            }
+                                          } completion:^(id <ASImageContainerProtocol> _Nullable imageContainer, NSError * _Nullable error, id  _Nullable downloadIdentifier) {
                                                   if (finished != NULL) {
                                                     finished(imageContainer, error, downloadIdentifier);
                                                   }
