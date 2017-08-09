@@ -551,6 +551,9 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
       url = _URL;
     }
     __weak __typeof__(self) weakSelf = self;
+    if ([weakSelf.delegate respondsToSelector:@selector(imageNodeDidStartLoadData:)]) {
+      [weakSelf.delegate imageNodeDidStartLoadData:weakSelf];
+    }
     downloadIdentifier = [_downloader downloadImageWithURL:url
                                              callbackQueue:dispatch_get_main_queue()
                                           downloadProgress:^(CGFloat progress) {
