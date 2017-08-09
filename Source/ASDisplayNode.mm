@@ -82,6 +82,7 @@ NSInteger const ASDefaultDrawingPriority = ASDefaultTransactionPriority;
 @synthesize threadSafeBounds = _threadSafeBounds;
 
 static BOOL suppressesInvalidCollectionUpdateExceptions = NO;
+static std::atomic_bool storesUnflattenedLayouts = ATOMIC_VAR_INIT(NO);
 
 + (BOOL)suppressesInvalidCollectionUpdateExceptions
 {
@@ -175,6 +176,15 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   }
   if (ASDisplayNodeSubclassOverridesSelector(c, @selector(layoutSpecThatFits:))) {
     overrides |= ASDisplayNodeMethodOverrideLayoutSpecThatFits;
+  }
+  if (ASDisplayNodeSubclassOverridesSelector(c, @selector(calculateLayoutThatFits:)) ||
+      ASDisplayNodeSubclassOverridesSelector(c, @selector(calculateLayoutThatFits:
+                                                                 restrictedToSize:
+                                                             relativeToParentSize:))) {
+    overrides |= ASDisplayNodeMethodOverrideCalcLayoutThatFits;
+  }
+  if (ASDisplayNodeSubclassOverridesSelector(c, @selector(calculateSizeThatFits:))) {
+    overrides |= ASDisplayNodeMethodOverrideCalcSizeThatFits;
   }
   if (ASDisplayNodeSubclassOverridesSelector(c, @selector(fetchData))) {
     overrides |= ASDisplayNodeMethodOverrideFetchData;
@@ -422,12 +432,6 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   if (ASDisplayNodeThreadIsMain() == NO) {
     [self _scheduleIvarsForMainDeallocation];
   }
-
-#if YOGA
-  if (_yogaNode != NULL) {
-    YGNodeFree(_yogaNode);
-  }
-#endif
 
   // TODO: Remove this? If supernode isn't already nil, this method isn't dealloc-safe anyway.
   [self _setSupernode:nil];
@@ -854,10 +858,6 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
 
 #pragma mark - Layout
 
-#if DEBUG
-  #define AS_DEDUPE_LAYOUT_SPEC_TREE 1
-#endif
-
 // At most a layoutSpecBlock or one of the three layout methods is overridden
 #define __ASDisplayNodeCheckForLayoutMethodOverrides \
     ASDisplayNodeAssert(_layoutSpecBlock != NULL || \
@@ -891,6 +891,8 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   if (_pendingDisplayNodeLayout != nullptr) {
     _pendingDisplayNodeLayout->invalidate();
   }
+  
+  _unflattenedLayout = nil;
 
 #if YOGA
   [self invalidateCalculatedYogaLayout];
@@ -955,9 +957,25 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
                      restrictedToSize:(ASLayoutElementSize)size
                  relativeToParentSize:(CGSize)parentSize
 {
+  // Use a pthread specific to mark when this method is called re-entrant on same thread.
+  // We only want one calculateLayout signpost interval per thread.
+  // This is fast enough to do it unconditionally.
+  auto key = ASPthreadStaticKey(NULL);
+  BOOL isRootCall = (pthread_getspecific(key) == NULL);
+  if (isRootCall) {
+    pthread_setspecific(key, kCFBooleanTrue);
+    ASSignpostStart(ASSignpostCalculateLayout);
+  }
+
   ASSizeRange styleAndParentSize = ASLayoutElementSizeResolve(self.style.size, parentSize);
   const ASSizeRange resolvedRange = ASSizeRangeIntersect(constrainedSize, styleAndParentSize);
-  return [self calculateLayoutThatFits:resolvedRange];
+  ASLayout *result = [self calculateLayoutThatFits:resolvedRange];
+
+  if (isRootCall) {
+    pthread_setspecific(key, NULL);
+    ASSignpostEnd(ASSignpostCalculateLayout);
+  }
+  return result;
 }
 
 - (ASLayout *)calculateLayoutThatFits:(ASSizeRange)constrainedSize
@@ -966,23 +984,33 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
 
   ASDN::MutexLocker l(__instanceLock__);
 
-#if YOGA /* YOGA */
-  if (ASHierarchyStateIncludesYogaLayoutEnabled(_hierarchyState) == YES) {
-    if (ASHierarchyStateIncludesYogaLayoutMeasuring(_hierarchyState) == NO && self.yogaCalculatedLayout == nil) {
-      ASDN::MutexUnlocker ul(__instanceLock__);
+#if YOGA
+  // There are several cases where Yoga could arrive here:
+  // - This node is not in a Yoga tree: it has neither a yogaParent nor yogaChildren.
+  // - This node is a Yoga tree root: it has no yogaParent, but has yogaChildren.
+  // - This node is a Yoga tree node: it has both a yogaParent and yogaChildren.
+  // - This node is a Yoga tree leaf: it has a yogaParent, but no yogaChidlren.
+  // If we're a leaf node, we are probably being called by a measure function and proceed as normal.
+  // If we're a yoga root or tree node, initiate a new Yoga calculation pass from root.
+  YGNodeRef yogaNode = _style.yogaNode;
+  BOOL hasYogaParent = (_yogaParent != nil);
+  BOOL hasYogaChildren = (_yogaChildren.count > 0);
+  BOOL usesYoga = (yogaNode != NULL && (hasYogaParent || hasYogaChildren));
+  if (usesYoga && (_yogaParent == nil || _yogaChildren.count > 0)) {
+    // This node has some connection to a Yoga tree.
+    ASDN::MutexUnlocker ul(__instanceLock__);
+
+    if (self.yogaLayoutInProgress == NO) {
       [self calculateLayoutFromYogaRoot:constrainedSize];
     }
-
-    // The call above may set yogaCalculatedLayout, even if it tested as nil to enter it.
-    if (self.yogaCalculatedLayout && self.yogaChildren.count > 0) {
-      return self.yogaCalculatedLayout;
-    }
+    ASDisplayNodeAssert(_yogaCalculatedLayout, @"Yoga node should have a non-nil layout at this stage: %@", self);
+    return _yogaCalculatedLayout;
   }
+  ASYogaLog(@"PROCEEDING past Yoga check to calculate ASLayout for: %@", self);
 #endif /* YOGA */
   
   // Manual size calculation via calculateSizeThatFits:
-  if (((_methodOverrides & ASDisplayNodeMethodOverrideLayoutSpecThatFits) ||
-      (_layoutSpecBlock != NULL)) == NO) {
+  if (_layoutSpecBlock == NULL && (_methodOverrides & ASDisplayNodeMethodOverrideLayoutSpecThatFits) == 0) {
     CGSize size = [self calculateSizeThatFits:constrainedSize.max];
     ASDisplayNodeLogEvent(self, @"calculatedSize: %@", NSStringFromCGSize(size));
     return [ASLayout layoutWithLayoutElement:self size:ASSizeRangeClamp(constrainedSize, size) sublayouts:nil];
@@ -1002,7 +1030,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     ASLayoutSpec *layoutSpec = (ASLayoutSpec *)layoutElement;
   
 #if AS_DEDUPE_LAYOUT_SPEC_TREE
-    NSSet *duplicateElements = [layoutSpec findDuplicatedElementsInSubtree];
+    NSHashTable *duplicateElements = [layoutSpec findDuplicatedElementsInSubtree];
     if (duplicateElements.count > 0) {
       ASDisplayNodeFailAssert(@"Node %@ returned a layout spec that contains the same elements in multiple positions. Elements: %@", self, duplicateElements);
       // Use an empty layout spec to avoid crashes
@@ -1017,7 +1045,6 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   
   // Manually propagate the trait collection here so that any layoutSpec children of layoutSpec will get a traitCollection
   {
-    
     ASDN::SumScopeTimer t(_layoutSpecTotalTime, measureLayoutSpec);
     ASTraitCollectionPropagateDown(layoutElement, self.primitiveTraitCollection);
   }
@@ -1042,18 +1069,20 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   }
   ASDisplayNodeLogEvent(self, @"computedLayout: %@", layout);
 
-  return [layout filteredNodeLayoutTree];
+  // Return the (original) unflattened layout if it needs to be stored. The layout will be flattened later on (@see _locked_setCalculatedDisplayNodeLayout:).
+  // Otherwise, flatten it right away.
+  if (! [ASDisplayNode shouldStoreUnflattenedLayouts]) {
+    layout = [layout filteredNodeLayoutTree];
+  }
+  
+  return layout;
 }
 
 - (CGSize)calculateSizeThatFits:(CGSize)constrainedSize
 {
   __ASDisplayNodeCheckForLayoutMethodOverrides;
   
-#if ASDISPLAYNODE_ASSERTIONS_ENABLED
-  if (ASIsCGSizeValidForSize(constrainedSize) == NO) {
-    NSLog(@"Cannot calculate size of node: constrainedSize is infinite and node does not override -calculateSizeThatFits: or specify a preferredSize. Try setting style.preferredSize. Node: %@", [self displayNodeRecursiveDescription]);
-  }
-#endif
+  ASDisplayNodeLogEvent(self, @"calculateSizeThatFits: with constrainedSize: %@", NSStringFromCGSize(constrainedSize));
 
   return ASIsCGSizeValidForSize(constrainedSize) ? constrainedSize : CGSizeZero;
 }
@@ -3224,7 +3253,10 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
 
 - (NSString *)debugDescription
 {
-  return ASObjectDescriptionMake(self, [self propertiesForDebugDescription]);
+  ASPushMainThreadAssertionsDisabled();
+  auto result = ASObjectDescriptionMake(self, [self propertiesForDebugDescription]);
+  ASPopMainThreadAssertionsDisabled();
+  return result;
 }
 
 // This should only be called for debugging. It's not thread safe and it doesn't assert.
@@ -3293,6 +3325,22 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
 #pragma mark - ASDisplayNode (Debugging)
 
 @implementation ASDisplayNode (Debugging)
+
++ (void)setShouldStoreUnflattenedLayouts:(BOOL)shouldStore
+{
+  storesUnflattenedLayouts.store(shouldStore);
+}
+
++ (BOOL)shouldStoreUnflattenedLayouts
+{
+  return storesUnflattenedLayouts.load();
+}
+
+- (ASLayout *)unflattenedCalculatedLayout
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _unflattenedLayout;
+}
 
 - (NSString *)displayNodeRecursiveDescription
 {

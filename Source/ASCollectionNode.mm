@@ -28,6 +28,7 @@
 #import <AsyncDisplayKit/ASDisplayNode+FrameworkPrivate.h>
 #import <AsyncDisplayKit/ASInternalHelpers.h>
 #import <AsyncDisplayKit/ASCellNode+Internal.h>
+#import <AsyncDisplayKit/_ASHierarchyChangeSet.h>
 #import <AsyncDisplayKit/AsyncDisplayKit+Debug.h>
 #import <AsyncDisplayKit/ASSectionContext.h>
 #import <AsyncDisplayKit/ASDataController.h>
@@ -45,6 +46,7 @@
 @property (nonatomic, assign) BOOL allowsSelection; // default is YES
 @property (nonatomic, assign) BOOL allowsMultipleSelection; // default is NO
 @property (nonatomic, assign) BOOL inverted; //default is NO
+@property (nonatomic, assign) BOOL usesSynchronousDataLoading;
 @property (nonatomic, assign) CGFloat leadingScreensForBatching;
 @property (weak, nonatomic) id <ASCollectionViewLayoutInspecting> layoutInspector;
 @end
@@ -175,12 +177,14 @@
   
   if (_pendingState) {
     _ASCollectionPendingState *pendingState = _pendingState;
-    self.pendingState            = nil;
-    view.asyncDelegate           = pendingState.delegate;
-    view.asyncDataSource         = pendingState.dataSource;
-    view.inverted                = pendingState.inverted;
-    view.allowsSelection         = pendingState.allowsSelection;
-    view.allowsMultipleSelection = pendingState.allowsMultipleSelection;
+    view.asyncDelegate              = pendingState.delegate;
+    view.asyncDataSource            = pendingState.dataSource;
+    view.inverted                   = pendingState.inverted;
+    view.allowsSelection            = pendingState.allowsSelection;
+    view.allowsMultipleSelection    = pendingState.allowsMultipleSelection;
+    view.usesSynchronousDataLoading = pendingState.usesSynchronousDataLoading;
+    view.layoutInspector            = pendingState.layoutInspector;
+    self.pendingState               = nil;
     
     if (pendingState.rangeMode != ASLayoutRangeModeUnspecified) {
       [view.rangeController updateCurrentRangeWithMode:pendingState.rangeMode];
@@ -427,6 +431,16 @@
   }
 }
 
+- (ASScrollDirection)scrollDirection
+{
+  return [self isNodeLoaded] ? self.view.scrollDirection : ASScrollDirectionNone;
+}
+
+- (ASScrollDirection)scrollableDirections
+{
+  return [self isNodeLoaded] ? self.view.scrollableDirections : ASScrollDirectionNone;
+}
+
 - (ASElementMap *)visibleElements
 {
   ASDisplayNodeAssertMainThread();
@@ -451,6 +465,24 @@
 - (id<ASBatchFetchingDelegate>)batchFetchingDelegate
 {
   return _batchFetchingDelegate;
+}
+
+- (BOOL)usesSynchronousDataLoading
+{
+  if ([self pendingState]) {
+    return _pendingState.usesSynchronousDataLoading; 
+  } else {
+    return self.view.usesSynchronousDataLoading;
+  }
+}
+
+- (void)setUsesSynchronousDataLoading:(BOOL)usesSynchronousDataLoading
+{
+  if ([self pendingState]) {
+    _pendingState.usesSynchronousDataLoading = usesSynchronousDataLoading; 
+  } else {
+    self.view.usesSynchronousDataLoading = usesSynchronousDataLoading;
+  }
 }
 
 #pragma mark - Range Tuning
@@ -559,6 +591,12 @@
   return [self.dataController.pendingMap elementForItemAtIndexPath:indexPath].node;
 }
 
+- (id)viewModelForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+  [self reloadDataInitiallyIfNeeded];
+  return [self.dataController.pendingMap elementForItemAtIndexPath:indexPath].viewModel;
+}
+
 - (NSIndexPath *)indexPathForNode:(ASCellNode *)cellNode
 {
   return [self.dataController.pendingMap indexPathForElement:cellNode.collectionElement];
@@ -645,9 +683,17 @@
 - (void)reloadDataWithCompletion:(void (^)())completion
 {
   ASDisplayNodeAssertMainThread();
-  if (self.nodeLoaded) {
-    [self.view reloadDataWithCompletion:completion];
+  if (!self.nodeLoaded) {
+    return;
   }
+  
+  [self performBatchUpdates:^{
+    [self.view.changeSet reloadData];
+  } completion:^(BOOL finished){
+    if (completion) {
+      completion();
+    }
+  }];
 }
 
 - (void)reloadData
@@ -655,14 +701,19 @@
   [self reloadDataWithCompletion:nil];
 }
 
-- (void)relayoutItems
-{
-  [self.view relayoutItems];
-}
-
 - (void)reloadDataImmediately
 {
-  [self.view reloadDataImmediately];
+  ASDisplayNodeAssertMainThread();
+  [self reloadData];
+  [self waitUntilAllUpdatesAreCommitted];
+}
+
+- (void)relayoutItems
+{
+  ASDisplayNodeAssertMainThread();
+  if (self.nodeLoaded) {
+  	[self.view relayoutItems];
+  }
 }
 
 - (void)beginUpdates

@@ -51,13 +51,16 @@ typedef NS_OPTIONS(NSUInteger, ASDisplayNodeMethodOverrides)
   ASDisplayNodeMethodOverrideTouchesEnded       = 1 << 2,
   ASDisplayNodeMethodOverrideTouchesMoved       = 1 << 3,
   ASDisplayNodeMethodOverrideLayoutSpecThatFits = 1 << 4,
-  ASDisplayNodeMethodOverrideFetchData          = 1 << 5,
-  ASDisplayNodeMethodOverrideClearFetchedData   = 1 << 6
+  ASDisplayNodeMethodOverrideCalcLayoutThatFits = 1 << 5,
+  ASDisplayNodeMethodOverrideCalcSizeThatFits   = 1 << 6,
+  ASDisplayNodeMethodOverrideFetchData          = 1 << 7,
+  ASDisplayNodeMethodOverrideClearFetchedData   = 1 << 8
 };
 
 typedef NS_OPTIONS(uint_least32_t, ASDisplayNodeAtomicFlags)
 {
   Synchronous = 1 << 0,
+  YogaLayoutInProgress = 1 << 1,
 };
 
 #define checkFlag(flag) ((_atomicFlags.load() & flag) != 0)
@@ -127,7 +130,7 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   NSArray<ASDisplayNode *> *_cachedSubnodes;
 
   ASLayoutElementStyle *_style;
-  ASPrimitiveTraitCollection _primitiveTraitCollection;
+  std::atomic<ASPrimitiveTraitCollection> _primitiveTraitCollection;
 
   std::atomic_uint _displaySentinel;
 
@@ -198,13 +201,18 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   NSInteger _layoutComputationNumberOfPasses;
 
 #if YOGA
-  YGNodeRef _yogaNode;
-  ASDisplayNode *_yogaParent;
+  // Only ASDisplayNodes are supported in _yogaChildren currently. This means that it is necessary to
+  // create ASDisplayNodes to make a stack layout when using Yoga.
+  // However, the implementation is mostly ready for id <ASLayoutElement>, with a few areas requiring updates.
   NSMutableArray<ASDisplayNode *> *_yogaChildren;
+  __weak ASDisplayNode *_yogaParent;
   ASLayout *_yogaCalculatedLayout;
 #endif
   
   NSString *_debugName;
+
+#pragma mark - ASDisplayNode (Debugging)
+  ASLayout *_unflattenedLayout;
 
 #if TIME_DISPLAYNODE_OPS
 @public

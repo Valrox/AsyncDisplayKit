@@ -215,6 +215,24 @@
 #define AS_SUBCLASSING_RESTRICTED
 #endif
 
+#define ASPthreadStaticKey(dtor) ({ \
+  static dispatch_once_t onceToken; \
+  static pthread_key_t key; \
+  dispatch_once(&onceToken, ^{ \
+    pthread_key_create(&key, dtor); \
+  }); \
+  key; \
+})
+
+#define ASCreateOnce(expr) ({ \
+  static dispatch_once_t onceToken; \
+  static __typeof__(expr) staticVar; \
+  dispatch_once(&onceToken, ^{ \
+    staticVar = expr; \
+  }); \
+  staticVar; \
+})
+
 /// Ensure that class is of certain kind
 #define ASDynamicCast(x, c) ({ \
   id __val = x;\
@@ -233,6 +251,20 @@
     } \
   } \
   s; \
+})
+
+/**
+ * Create a new ObjectPointerPersonality NSHashTable by mapping `collection` over `work`, ignoring nil.
+ */
+#define ASPointerTableByFlatMapping(collection, decl, work) ({ \
+  NSHashTable *t = [NSHashTable hashTableWithOptions:NSHashTableObjectPointerPersonality]; \
+  for (decl in collection) {\
+    id result = work; \
+    if (result != nil) { \
+      [t addObject:result]; \
+    } \
+  } \
+  t; \
 })
 
 /**

@@ -47,7 +47,6 @@ ASOVERLOADABLE ASDimension ASDimensionMake(NSString *dimension)
     }
   }
   
-  ASDisplayNodeCAssert(NO, @"Parsing dimension failed for: %@", dimension);
   return ASDimensionAuto;
 }
 
@@ -115,4 +114,14 @@ NSString *NSStringFromASSizeRange(ASSizeRange sizeRange)
 #if YOGA
 #pragma mark - Yoga - ASEdgeInsets
 ASEdgeInsets const ASEdgeInsetsZero = {};
+
+extern ASEdgeInsets ASEdgeInsetsMake(UIEdgeInsets edgeInsets)
+{
+  ASEdgeInsets asEdgeInsets = ASEdgeInsetsZero;
+  asEdgeInsets.top = ASDimensionMake(edgeInsets.top);
+  asEdgeInsets.left = ASDimensionMake(edgeInsets.left);
+  asEdgeInsets.bottom = ASDimensionMake(edgeInsets.bottom);
+  asEdgeInsets.right = ASDimensionMake(edgeInsets.right);
+  return asEdgeInsets;
+}
 #endif
