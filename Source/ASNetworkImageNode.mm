@@ -693,6 +693,9 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
           if (strongSelf->_delegateFlags.delegateDidLoadImage) {
             ASDN::MutexUnlocker u(strongSelf->__instanceLock__);
             [delegate imageNode:strongSelf didLoadImage:strongSelf.image];
+            if ([delegate respondsToSelector:@selector(imageNode:didNetworkLoadImage:withError:)] && downloadIdentifier != nil) {
+              [delegate imageNode:strongSelf didNetworkLoadImage:strongSelf.image withError:error];
+            }
           }
         } else if (error && strongSelf->_delegateFlags.delegateDidFailWithError) {
           ASDN::MutexUnlocker u(strongSelf->__instanceLock__);

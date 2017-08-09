@@ -137,6 +137,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @discussion Called on a background queue.
  */
 - (void)imageNode:(ASNetworkImageNode *)imageNode didLoadImage:(UIImage *)image;
+- (void)imageNode:(ASNetworkImageNode *)imageNode didNetworkLoadImage:(UIImage *)image withError:(NSError *)error;
 
 /**
  * Notification that the image node started to load
