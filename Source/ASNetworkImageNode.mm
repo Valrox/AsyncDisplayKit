@@ -26,6 +26,7 @@
 #import <AsyncDisplayKit/ASImageNode+Private.h>
 #import <AsyncDisplayKit/ASImageNode+AnimatedImagePrivate.h>
 #import <AsyncDisplayKit/ASImageContainerProtocolCategories.h>
+#import <AsyncDisplayKit/ASLog.h>
 
 #if AS_PIN_REMOTE_IMAGE
 #import <AsyncDisplayKit/ASPINRemoteImageDownloader.h>
@@ -417,6 +418,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
     return;
   }
   
+  as_log_verbose(ASImageLoadingLog(), "Received progress image for %@ q: %.2g id: %@", self, progress, progressImage);
   [self _locked_setCurrentImageQuality:progress];
   [self _locked__setImage:progressImage];
 }
@@ -443,12 +445,14 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
 
   // Unbind from the previous download.
   if (oldDownloadIDForProgressBlock != nil) {
+    as_log_verbose(ASImageLoadingLog(), "Disabled progress images for %@ id: %@", self, oldDownloadIDForProgressBlock);
     [_downloader setProgressImageBlock:nil callbackQueue:dispatch_get_main_queue() withDownloadIdentifier:oldDownloadIDForProgressBlock];
   }
 
   // Bind to the current download.
   if (newDownloadIDForProgressBlock != nil) {
     __weak __typeof(self) weakSelf = self;
+    as_log_verbose(ASImageLoadingLog(), "Enabled progress images for %@ id: %@", self, newDownloadIDForProgressBlock);
     [_downloader setProgressImageBlock:^(UIImage * _Nonnull progressImage, CGFloat progress, id  _Nullable downloadIdentifier) {
       [weakSelf handleProgressImage:progressImage progress:progress downloadIdentifier:downloadIdentifier];
     } callbackQueue:dispatch_get_main_queue() withDownloadIdentifier:newDownloadIDForProgressBlock];
@@ -507,6 +511,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
 
   if (_cacheFlags.cacheSupportsClearing) {
     if (_URL != nil) {
+      as_log_verbose(ASImageLoadingLog(), "Clearing cached image for %@ url: %@", self, _URL);
       [_cache clearFetchedImageFromCacheWithURL:_URL];
     }
   }
@@ -526,8 +531,10 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
 
   if (_downloadIdentifier) {
     if (storeResume && _downloaderFlags.downloaderImplementsCancelWithResume) {
+      as_log_verbose(ASImageLoadingLog(), "Canceling image download w resume for %@ id: %@", self, _downloadIdentifier);
       [_downloader cancelImageDownloadWithResumePossibilityForIdentifier:_downloadIdentifier];
     } else {
+      as_log_verbose(ASImageLoadingLog(), "Canceling image download no resume for %@ id: %@", self, _downloadIdentifier);
       [_downloader cancelImageDownloadForIdentifier:_downloadIdentifier];
     }
   }
@@ -554,6 +561,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
     if ([weakSelf.delegate respondsToSelector:@selector(imageNodeDidStartLoadData:)]) {
       [weakSelf.delegate imageNodeDidStartLoadData:weakSelf];
     }
+
     downloadIdentifier = [_downloader downloadImageWithURL:url
                                              callbackQueue:dispatch_get_main_queue()
                                           downloadProgress:^(CGFloat progress) {
@@ -565,6 +573,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
                                                     finished(imageContainer, error, downloadIdentifier);
                                                   }
                                                 }];
+    as_log_verbose(ASImageLoadingLog(), "Downloading image for %@ url: %@", self, url);
   
     {
       ASDN::MutexLocker l(__instanceLock__);
@@ -580,6 +589,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
     
     if (cancelAndReattempt) {
       if (downloadIdentifier != nil) {
+        as_log_verbose(ASImageLoadingLog(), "Canceling image download no resume for %@ id: %@", self, downloadIdentifier);
         [_downloader cancelImageDownloadForIdentifier:downloadIdentifier];
       }
       [self _downloadImageWithCompletion:finished];
@@ -660,13 +670,15 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
       });
     } else {
       __weak __typeof__(self) weakSelf = self;
-      void (^finished)(id <ASImageContainerProtocol>, NSError *, id downloadIdentifier) = ^(id <ASImageContainerProtocol>imageContainer, NSError *error, id downloadIdentifier) {
+      auto finished = ^(id <ASImageContainerProtocol>imageContainer, NSError *error, id downloadIdentifier) {
        
         __typeof__(self) strongSelf = weakSelf;
         if (strongSelf == nil) {
           return;
         }
 
+        as_log_verbose(ASImageLoadingLog(), "Downloaded image for %@ img: %@ url: %@", self, [imageContainer asdk_image], url);
+        
         // Grab the lock for the rest of the block
         ASDN::MutexLocker l(strongSelf->__instanceLock__);
         
@@ -711,6 +723,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
           _cacheUUID = cacheUUID;
         __instanceLock__.unlock();
 
+        as_log_verbose(ASImageLoadingLog(), "Decaching image for %@ url: %@", self, URL);
         [_cache cachedImageWithURL:URL
                      callbackQueue:dispatch_get_main_queue()
                         completion:^(id <ASImageContainerProtocol> imageContainer) {
@@ -726,6 +739,7 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
                           if ([imageContainer asdk_image] == nil && _downloader != nil) {
                             [self _downloadImageWithCompletion:finished];
                           } else {
+                            as_log_verbose(ASImageLoadingLog(), "Decached image for %@ img: %@ url: %@", self, [imageContainer asdk_image], URL);
                             finished(imageContainer, nil, nil);
                           }
                         }];
