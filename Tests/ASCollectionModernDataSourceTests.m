@@ -71,7 +71,7 @@
 
 - (void)tearDown
 {
-  [collectionNode waitUntilAllUpdatesAreCommitted];
+  [collectionNode waitUntilAllUpdatesAreProcessed];
   [super tearDown];
 }
 
@@ -174,6 +174,7 @@
     for (NSInteger i = 0; i < nodeModels.count; i++) {
       NSIndexPath *indexPath = [NSIndexPath indexPathForItem:i inSection:section];
       [self expectNodeModelMethodForItemAtIndexPath:indexPath nodeModel:nodeModels[i]];
+      [self expectNodeBlockMethodForItemAtIndexPath:indexPath];
     }
   }
 
