@@ -2,6 +2,16 @@
 
 * Add your own contributions to the next release on the line below this with your name.
 
+- [ASCollectionView] Improve index space translation of Flow Layout Delegate methods. [Scott Goodson](https://github.com/appleguy)
+- [ASVideoNode] Fix unreleased time observer. [Flo Vouin](https://github.com/flovouin)
+- [PINCache] Set a default .byteLimit to reduce disk usage and startup time. [#595](https://github.com/TextureGroup/Texture/pull/595) [Scott Goodson](https://github.com/appleguy)
+- [ASNetworkImageNode] Fix deadlock in GIF handling. [#582](https://github.com/TextureGroup/Texture/pull/582) [Garrett Moon](https://github.com/garrettmoon)
+- [ASDisplayNode] Add attributed versions of a11y label, hint and value. [#554](https://github.com/TextureGroup/Texture/pull/554) [Alexander Hüllmandel](https://github.com/fruitcoder)
+- [ASCornerRounding] Introduce .cornerRoundingType: CALayer, Precomposited, or Clip Corners. [Scott Goodson](https://github.com/appleguy) [#465](https://github.com/TextureGroup/Texture/pull/465)
+- [Yoga] Add insertYogaNode:atIndex: method. Improve handling of relayouts. [Scott Goodson](https://github.com/appleguy)
+- [Animated Image] Adds support for animated WebP as well as improves GIF handling. [#605](https://github.com/TextureGroup/Texture/pull/605) [Garrett Moon](https://github.com/garrettmoon)
+
+
 ## 2.5
 
 - [ASCollectionNode] Add -isProcessingUpdates and -onDidFinishProcessingUpdates: APIs. [#522](https://github.com/TextureGroup/Texture/pull/522) [Scott Goodson](https://github.com/appleguy)
@@ -27,6 +37,7 @@
 - Add support for URLs on ASNetworkImageNode. [Garrett Moon](https://github.com/garrettmoon)
 - [ASImageNode] Always dealloc images in a background queue [Huy Nguyen](https://github.com/nguyenhuy) [#561](https://github.com/TextureGroup/Texture/pull/561)
 - Mark ASRunLoopQueue as drained if it contains only NULLs [Cesar Estebanez](https://github.com/cesteban) [#558](https://github.com/TextureGroup/Texture/pull/558)
+- Fix crashes caused by failing to unlock or destroy a static mutex while the app is being terminated [Huy Nguyen](https://github.com/nguyenhuy)
 
 ## 2.4
 - Fix an issue where inserting/deleting sections could lead to inconsistent supplementary element behavior. [Adlai Holler](https://github.com/Adlai-Holler)
