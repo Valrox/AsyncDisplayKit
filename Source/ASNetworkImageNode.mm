@@ -580,7 +580,6 @@
       [weakSelf.delegate imageNodeDidStartLoadData:weakSelf];
     }
 
-    NSNumber *did = [NSNumber numberWithBool:YES];
     if (_downloaderFlags.downloaderImplementsDownloadURLs) {
       downloadIdentifier = [_downloader downloadImageWithURLs:urls
                                                 callbackQueue:dispatch_get_main_queue()
@@ -591,7 +590,7 @@
                                              }
                                                    completion:^(id <ASImageContainerProtocol> _Nullable imageContainer, NSError * _Nullable error, id  _Nullable downloadIdentifier) {
                                                      if (finished != NULL) {
-                                                       finished(imageContainer, error, did);
+                                                       finished(imageContainer, error, downloadIdentifier);
                                                      }
                                                    }];
     } else {
@@ -604,7 +603,7 @@
                                             }
                                                   completion:^(id <ASImageContainerProtocol> _Nullable imageContainer, NSError * _Nullable error, id  _Nullable downloadIdentifier) {
                                                     if (finished != NULL) {
-                                                      finished(imageContainer, error, did);
+                                                      finished(imageContainer, error, downloadIdentifier);
                                                     }
                                                   }];
     }

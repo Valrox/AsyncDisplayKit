@@ -129,7 +129,7 @@ static ASDN::RecursiveMutex currentRequestsLock;
 
     if (completionBlock) {
       dispatch_async(callbackQueue, ^{
-        completionBlock(image, error, nil);
+        completionBlock(image, error, self);
       });
     }
   }
