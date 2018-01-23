@@ -173,6 +173,7 @@ typedef struct {
  * @discussion Called on a background queue.
  */
 - (void)imageNode:(ASNetworkImageNode *)imageNode didLoadImage:(UIImage *)image;
+- (void)imageNode:(ASNetworkImageNode *)imageNode didNetworkLoadImage:(UIImage *)image withError:(NSError *)error;
 
 /**
  * Notification that the image node started to load
@@ -182,6 +183,7 @@ typedef struct {
  * @discussion Called on a background queue.
  */
 - (void)imageNodeDidStartFetchingData:(ASNetworkImageNode *)imageNode;
+- (void)imageNodeDidStartLoadData:(ASNetworkImageNode *)imageNode;
 
 /**
  * Notification that the image node failed to download the image.
@@ -199,6 +201,8 @@ typedef struct {
  * @param imageNode The sender.
  */
 - (void)imageNodeDidFinishDecoding:(ASNetworkImageNode *)imageNode;
+
+- (void)imageNode:(ASNetworkImageNode *)imageNode downloadProgress:(double)progress;
 
 @end
 

@@ -47,6 +47,7 @@ In any case where you need your text node to fit into a space that is smaller th
 <pre lang="objc" class="objcCode">
 _textNode = [[ASTextNode alloc] init];
 _textNode.attributedText = string;
+
 _textNode.truncationAttributedText = [[NSAttributedString alloc]
 												initWithString:@"¶¶¶"];
 </pre>
@@ -224,3 +225,4 @@ textNode.attributedText = NSAttributedString(string: someLongString, attributes:
 </div>
 </div>
 ```
+>>>>>>> 2.3.3

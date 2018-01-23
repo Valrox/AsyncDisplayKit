@@ -1672,7 +1672,7 @@ static NSString * const kReuseIdentifier = @"_ASCollectionReuseIdentifier";
   return _batchContext;
 }
 
-- (BOOL)canBatchFetch
+- (BOOL)canBatchFetchScrollDirection:(ASScrollDirection)scrollDirection
 {
   // if the delegate does not respond to this method, there is no point in starting to fetch
   BOOL canFetch = _asyncDelegateFlags.collectionNodeWillBeginBatchFetch || _asyncDelegateFlags.collectionViewWillBeginBatchFetch;

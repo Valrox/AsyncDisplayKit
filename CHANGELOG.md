@@ -12,6 +12,7 @@
 - Updated to be backwards compatible with Xcode 8. [Adlai Holler](https://github.com/Adlai-Holler)
 - [API CHANGES] `ASPerformMainThreadDeallocation` and `ASPerformBackgroundDeallocation` functions take `id *` instead of `id` and they're now more reliable. Also, in Swift, `ASDeallocQueue.sharedDeallocationQueue() -> ASDeallocQueue.sharedDeallocationQueue`. [Adlai Holler](https://github.com/Adlai-Holler) [#651](https://github.com/TextureGroup/Texture/pull/651)
 - [Collection/Table] Added direct support for mapping section indexes between data spaces. [Adlai Holler](https://github.com/Adlai-Holler) [#651](https://github.com/TextureGroup/Texture/pull/660)
+- [ASCollectionView] Improve index space translation of Flow Layout Delegate methods. [Scott Goodson](https://github.com/appleguy)
 
 ## 2.5.1
 - [ASVideoNode] Fix unreleased time observer. [Flo Vouin](https://github.com/flovouin)
@@ -20,6 +21,7 @@
 - [ASDisplayNode] Add attributed versions of a11y label, hint and value. [#554](https://github.com/TextureGroup/Texture/pull/554) [Alexander Hüllmandel](https://github.com/fruitcoder)
 - [ASCornerRounding] Introduce .cornerRoundingType: CALayer, Precomposited, or Clip Corners. [Scott Goodson](https://github.com/appleguy) [#465](https://github.com/TextureGroup/Texture/pull/465)
 - [Yoga] Add insertYogaNode:atIndex: method. Improve handling of relayouts. [Scott Goodson](https://github.com/appleguy)
+
 
 ## 2.5
 
@@ -73,8 +75,6 @@
 - Migrated unit tests to OCMock 3.4 (from 2.2) and improved the multiplex image node tests. [Adlai Holler](https://github.com/Adlai-Holler)
 - Fix CollectionNode double-load issue. This should significantly improve performance in cases where a collection node has content immediately available on first layout i.e. not fetched from the network. [Adlai Holler](https://github.com/Adlai-Holler)
 - Overhaul layout flattening algorithm [Huy Nguyen](https://github.com/nguyenhuy) [#395](https://github.com/TextureGroup/Texture/pull/395).
-
-## 2.3.3
 - [ASTextKitFontSizeAdjuster] Replace use of NSAttributedString's boundingRectWithSize:options:context: with NSLayoutManager's boundingRectForGlyphRange:inTextContainer: [Ricky Cancro](https://github.com/rcancro)
 - Add support for IGListKit post-removal-of-IGListSectionType, in preparation for IGListKit 3.0.0 release. [Adlai Holler](https://github.com/Adlai-Holler) [#49](https://github.com/TextureGroup/Texture/pull/49)
 - Fix `__has_include` check in ASLog.h [Philipp Smorygo](Philipp.Smorygo@jetbrains.com)
@@ -102,4 +102,3 @@
 - [Fix] Fixed a bug where ASVideoNodeDelegate error reporting callback would crash an app because of not responding to selector. [Sergey Petrachkov](https://github.com/Petrachkov) [#291](https://github.com/TextureGroup/Texture/issues/291)
 - [IGListKit] Add IGListKit headers to public section of Xcode project [Michael Schneider](https://github.com/maicki)[#286](https://github.com/TextureGroup/Texture/pull/286)
 - [Layout] Ensure -layout and -layoutDidFinish are called only if a node is loaded. [Huy Nguyen](https://github.com/nguyenhuy) [#285](https://github.com/TextureGroup/Texture/pull/285)
-- [Layout Debugger] Small changes needed for the coming layout debugger [Huy Nguyen](https://github.com/nguyenhuy) [#337](https://github.com/TextureGroup/Texture/pull/337)

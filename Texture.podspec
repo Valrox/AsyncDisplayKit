@@ -5,7 +5,8 @@ Pod::Spec.new do |spec|
   spec.homepage     = 'http://texturegroup.org'
   spec.authors      = { 'Huy Nguyen' => 'huy@pinterest.com', 'Garrett Moon' => 'garrett@excitedpixel.com', 'Scott Goodson' => 'scottgoodson@gmail.com', 'Michael Schneider' => 'schneider@pinterest.com', 'Adlai Holler' => 'adlai@pinterest.com' }
   spec.summary      = 'Smooth asynchronous user interfaces for iOS apps.'
-  spec.source       = { :git => 'https://github.com/TextureGroup/Texture.git', :tag => spec.version.to_s }
+  spec.source       = { :git => 'https://github.com/aimalygin/AsyncDisplayKit.git', :tag => spec.version.to_s }
+
   spec.module_name  = 'AsyncDisplayKit'
   spec.header_dir   = 'AsyncDisplayKit'
 
@@ -30,11 +31,11 @@ Pod::Spec.new do |spec|
         'Source/TextKit/ASTextNodeTypes.h',
         'Source/TextKit/ASTextKitComponents.h'
     ]
-    
+
     core.source_files = [
         'Source/**/*.{h,m,mm}',
         'Base/*.{h,m}',
-      
+
         # Most TextKit components are not public because the C++ content
         # in the headers will cause build errors when using
         # `use_frameworks!` on 0.39.0 & Swift 2.1.
@@ -43,7 +44,7 @@ Pod::Spec.new do |spec|
     ]
     core.xcconfig = { 'GCC_PRECOMPILE_PREFIX_HEADER' => 'YES' }
   end
-  
+
   spec.subspec 'PINRemoteImage' do |pin|
       pin.dependency 'PINRemoteImage/iOS', '= 3.0.0-beta.13'
       pin.dependency 'PINRemoteImage/PINCache'
