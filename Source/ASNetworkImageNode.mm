@@ -568,11 +568,19 @@
       ASDN::MutexLocker l(__instanceLock__);
       url = _URL;
     }
+      __weak __typeof__(self) weakSelf = self;
+      if ([weakSelf.delegate respondsToSelector:@selector(imageNodeDidStartLoadData:)]) {
+          [weakSelf.delegate imageNodeDidStartLoadData:weakSelf];
+      }
 
 
     downloadIdentifier = [_downloader downloadImageWithURL:url
                                              callbackQueue:dispatch_get_main_queue()
-                                          downloadProgress:NULL
+                                          downloadProgress:^(CGFloat progress) {
+                                              if ([weakSelf.delegate respondsToSelector:@selector(imageNode:downloadProgress:)]) {
+                                                  [weakSelf.delegate imageNode:weakSelf downloadProgress:progress];
+                                              }
+                                          }
                                                 completion:^(id <ASImageContainerProtocol> _Nullable imageContainer, NSError * _Nullable error, id  _Nullable downloadIdentifier, id _Nullable userInfo) {
                                                   if (finished != NULL) {
                                                     finished(imageContainer, error, downloadIdentifier, userInfo);
@@ -731,6 +739,9 @@
             } else if (_delegateFlags.delegateDidLoadImage) {
               calloutBlock = ^(ASNetworkImageNode *strongSelf) {
                 [delegate imageNode:strongSelf didLoadImage:newImage];
+                  if ([delegate respondsToSelector:@selector(imageNode:didNetworkLoadImage:withError:)] && downloadIdentifier != nil) {
+                      [delegate imageNode:strongSelf didNetworkLoadImage:strongSelf.image withError:error];
+                  }
               };
             }
           } else if (error && _delegateFlags.delegateDidFailWithError) {

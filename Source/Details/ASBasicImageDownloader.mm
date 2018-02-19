@@ -130,7 +130,7 @@ static ASDN::StaticMutex& currentRequestsLock = *new ASDN::StaticMutex;
 
     if (completionBlock) {
       dispatch_async(callbackQueue, ^{
-        completionBlock(image, error, nil, nil);
+        completionBlock(image, error, self, nil);
       });
     }
   }
