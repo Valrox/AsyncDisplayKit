@@ -37,6 +37,8 @@
 #import <AsyncDisplayKit/ASTableView+Undeprecated.h>
 #import <AsyncDisplayKit/ASBatchContext.h>
 
+#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
+
 static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 //#define LOG(...) NSLog(__VA_ARGS__)
@@ -116,8 +118,10 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
     self.backgroundColor = node.backgroundColor;
     self.selectedBackgroundView = node.selectedBackgroundView;
     self.separatorInset = node.separatorInset;
-    self.selectionStyle = node.selectionStyle; 
-    self.focusStyle = node.focusStyle;
+    self.selectionStyle = node.selectionStyle;
+    if(SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"9.0")) {
+        self.focusStyle = node.focusStyle;
+    }
     self.accessoryType = node.accessoryType;
     self.tintColor = node.tintColor;
     
