@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = 'Texture'
-  spec.version      = '2.6'
+  spec.version      = '2.7'
   spec.license      =  { :type => 'BSD and Apache 2',  }
   spec.homepage     = 'http://texturegroup.org'
   spec.authors      = { 'Huy Nguyen' => 'huy@pinterest.com', 'Garrett Moon' => 'garrett@excitedpixel.com', 'Scott Goodson' => 'scottgoodson@gmail.com', 'Michael Schneider' => 'schneider@pinterest.com', 'Adlai Holler' => 'adlai@pinterest.com' }
@@ -11,8 +11,8 @@ Pod::Spec.new do |spec|
 
   spec.documentation_url = 'http://texturegroup.org/appledoc/'
 
-  spec.weak_frameworks = 'Photos','MapKit','AssetsLibrary'
-  spec.requires_arc = true
+  spec.ios.weak_frameworks = 'AssetsLibrary'
+  spec.weak_frameworks = 'Photos','MapKit'
 
   spec.ios.deployment_target = '8.0'
 
@@ -41,7 +41,6 @@ Pod::Spec.new do |spec|
         # See https://github.com/facebook/AsyncDisplayKit/issues/1153
         'Source/TextKit/*.h',
     ]
-    core.xcconfig = { 'GCC_PRECOMPILE_PREFIX_HEADER' => 'YES' }
   end
   
   spec.subspec 'PINRemoteImage' do |pin|
@@ -67,8 +66,8 @@ Pod::Spec.new do |spec|
   spec.social_media_url = 'https://twitter.com/TextureiOS'
   spec.library = 'c++'
   spec.pod_target_xcconfig = {
-       'CLANG_CXX_LANGUAGE_STANDARD' => 'c++11',
-       'CLANG_CXX_LIBRARY' => 'libc++'
-  }
-
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++11',
+    'CLANG_CXX_LIBRARY' => 'libc++'
+   }
+   
 end
