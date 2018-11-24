@@ -2,17 +2,9 @@
 //  ASDisplayNodeInternal.h
 //  Texture
 //
-//  Copyright (c) 2014-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under the BSD-style license found in the
-//  LICENSE file in the /ASDK-Licenses directory of this source tree. An additional
-//  grant of patent rights can be found in the PATENTS file in the same directory.
-//
-//  Modifications to this file made after 4/13/2017 are: Copyright (c) 2017-present,
-//  Pinterest, Inc.  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
+//  Copyright (c) Facebook, Inc. and its affiliates.  All rights reserved.
+//  Changes after 4/13/2017 are: Copyright (c) Pinterest, Inc.  All rights reserved.
+//  Licensed under Apache 2.0: http://www.apache.org/licenses/LICENSE-2.0
 //
 
 //
@@ -34,6 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol _ASDisplayLayerDelegate;
 @class _ASDisplayLayer;
 @class _ASPendingState;
+@class ASNodeController;
 struct ASDisplayNodeFlags;
 
 BOOL ASDisplayNodeSubclassOverridesSelector(Class subclass, SEL selector);
@@ -44,14 +37,19 @@ _ASPendingState * ASDisplayNodeGetPendingState(ASDisplayNode * node);
 
 typedef NS_OPTIONS(NSUInteger, ASDisplayNodeMethodOverrides)
 {
-  ASDisplayNodeMethodOverrideNone               = 0,
-  ASDisplayNodeMethodOverrideTouchesBegan       = 1 << 0,
-  ASDisplayNodeMethodOverrideTouchesCancelled   = 1 << 1,
-  ASDisplayNodeMethodOverrideTouchesEnded       = 1 << 2,
-  ASDisplayNodeMethodOverrideTouchesMoved       = 1 << 3,
-  ASDisplayNodeMethodOverrideLayoutSpecThatFits = 1 << 4,
-  ASDisplayNodeMethodOverrideCalcLayoutThatFits = 1 << 5,
-  ASDisplayNodeMethodOverrideCalcSizeThatFits   = 1 << 6,
+  ASDisplayNodeMethodOverrideNone                   = 0,
+  ASDisplayNodeMethodOverrideTouchesBegan           = 1 << 0,
+  ASDisplayNodeMethodOverrideTouchesCancelled       = 1 << 1,
+  ASDisplayNodeMethodOverrideTouchesEnded           = 1 << 2,
+  ASDisplayNodeMethodOverrideTouchesMoved           = 1 << 3,
+  ASDisplayNodeMethodOverrideLayoutSpecThatFits     = 1 << 4,
+  ASDisplayNodeMethodOverrideCalcLayoutThatFits     = 1 << 5,
+  ASDisplayNodeMethodOverrideCalcSizeThatFits       = 1 << 6,
+  ASDisplayNodeMethodOverrideCanBecomeFirstResponder= 1 << 7,
+  ASDisplayNodeMethodOverrideBecomeFirstResponder   = 1 << 8,
+  ASDisplayNodeMethodOverrideCanResignFirstResponder= 1 << 9,
+  ASDisplayNodeMethodOverrideResignFirstResponder   = 1 << 10,
+  ASDisplayNodeMethodOverrideIsFirstResponder       = 1 << 11,
 };
 
 typedef NS_OPTIONS(uint_least32_t, ASDisplayNodeAtomicFlags)
@@ -60,18 +58,23 @@ typedef NS_OPTIONS(uint_least32_t, ASDisplayNodeAtomicFlags)
   YogaLayoutInProgress = 1 << 1,
 };
 
+// Can be called without the node's lock. Client is responsible for thread safety.
+#define _loaded(node) (node->_layer != nil)
+
 #define checkFlag(flag) ((_atomicFlags.load() & flag) != 0)
 // Returns the old value of the flag as a BOOL.
 #define setFlag(flag, x) (((x ? _atomicFlags.fetch_or(flag) \
                               : _atomicFlags.fetch_and(~flag)) & flag) != 0)
 
-FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayScheduledNodesNotification;
-FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBeforeTimestamp;
+AS_EXTERN NSString * const ASRenderingEngineDidDisplayScheduledNodesNotification;
+AS_EXTERN NSString * const ASRenderingEngineDidDisplayNodesScheduledBeforeTimestamp;
 
 // Allow 2^n increments of begin disabling hierarchy notifications
 #define VISIBILITY_NOTIFICATIONS_DISABLED_BITS 4
 
 #define TIME_DISPLAYNODE_OPS 0 // If you're using this information frequently, try: (DEBUG || PROFILE)
+
+#define NUM_CLIP_CORNER_LAYERS 4
 
 @interface ASDisplayNode () <_ASTransitionContextCompletionDelegate>
 {
@@ -80,6 +83,8 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
 
   _ASPendingState *_pendingViewState;
   ASInterfaceState _pendingInterfaceState;
+  ASInterfaceState _preExitingInterfaceState;
+  
   UIView *_view;
   CALayer *_layer;
 
@@ -125,6 +130,9 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   ASDisplayNode * __weak _supernode;
   NSMutableArray<ASDisplayNode *> *_subnodes;
 
+  ASNodeController *_strongNodeController;
+  __weak ASNodeController *_weakNodeController;
+
   // Set this to nil whenever you modify _subnodes
   NSArray<ASDisplayNode *> *_cachedSubnodes;
 
@@ -156,8 +164,8 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   
   std::atomic<int32_t> _pendingTransitionID;
   ASLayoutTransition *_pendingLayoutTransition;
-  std::shared_ptr<ASDisplayNodeLayout> _calculatedDisplayNodeLayout;
-  std::shared_ptr<ASDisplayNodeLayout> _pendingDisplayNodeLayout;
+  ASDisplayNodeLayout _calculatedDisplayNodeLayout;
+  ASDisplayNodeLayout _pendingDisplayNodeLayout;
   
   /// Sentinel for layout data. Incremented when we get -setNeedsLayout / -invalidateCalculatedLayout.
   /// Starts at 1.
@@ -178,7 +186,7 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   
   CGFloat _cornerRadius;
   ASCornerRoundingType _cornerRoundingType;
-  CALayer *_clipCornerLayers[4];
+  CALayer *_clipCornerLayers[NUM_CLIP_CORNER_LAYERS];
 
   ASDisplayNodeContextModifier _willDisplayNodeContentWithRenderingContext;
   ASDisplayNodeContextModifier _didDisplayNodeContentWithRenderingContext;
@@ -241,6 +249,10 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
   NSTimeInterval _debugTimeToAddSubnodeViews;
   NSTimeInterval _debugTimeForDidLoad;
 #endif
+
+  /// Fast path: tells whether we've ever had an interface state delegate before.
+  BOOL _hasHadInterfaceStateDelegates;
+  __weak id<ASInterfaceStateDelegate> _interfaceStateDelegates[AS_MAX_INTERFACE_STATE_DELEGATES];
 }
 
 + (void)scheduleNodeForRecursiveDisplay:(ASDisplayNode *)node;
@@ -249,7 +261,7 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
 @property (nullable, nonatomic, readonly) _ASDisplayLayer *asyncLayer;
 
 /// Bitmask to check which methods an object overrides.
-@property (nonatomic, readonly) ASDisplayNodeMethodOverrides methodOverrides;
+- (ASDisplayNodeMethodOverrides)methodOverrides;
 
 /**
  * Invoked before a call to setNeedsLayout to the underlying view
@@ -260,6 +272,16 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
  * Invoked after a call to setNeedsDisplay to the underlying view
  */
 - (void)__setNeedsDisplay;
+
+/**
+ * Setup the node -> controller reference. Strong or weak is based on
+ * the "shouldInvertStrongReference" property of the controller.
+ *
+ * Note: To prevent lock-ordering deadlocks, this method does not take the node's lock.
+ * In practice, changing the node controller of a node multiple times is not
+ * supported behavior.
+ */
+- (void)__setNodeController:(ASNodeController *)controller;
 
 /**
  * Called whenever the node needs to layout its subnodes and, if it's already loaded, its subviews. Executes the layout pass for the node
@@ -313,6 +335,13 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
 - (void)applyPendingViewState;
 
 /**
+ * Makes a local copy of the interface state delegates then calls the block on each.
+ *
+ * Lock is not held during block invocation. Method must not be called with the lock held.
+ */
+- (void)enumerateInterfaceStateDelegates:(void(NS_NOESCAPE ^)(id<ASInterfaceStateDelegate> delegate))block;
+
+/**
  * // TODO: NOT YET IMPLEMENTED
  *
  * @abstract Prevents interface state changes from affecting the node, until disabled.
@@ -354,6 +383,15 @@ FOUNDATION_EXPORT NSString * const ASRenderingEngineDidDisplayNodesScheduledBefo
 @property (nonatomic) CGFloat layerCornerRadius;
 
 - (BOOL)_locked_insetsLayoutMarginsFromSafeArea;
+
+@end
+
+@interface ASDisplayNode (ASLayoutElementPrivate)
+
+/**
+ * Returns the internal style object or creates a new if no exists. Need to be called with lock held.
+ */
+- (ASLayoutElementStyle *)_locked_style;
 
 @end
 

@@ -2,17 +2,9 @@
 //  ASTableView.mm
 //  Texture
 //
-//  Copyright (c) 2014-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under the BSD-style license found in the
-//  LICENSE file in the /ASDK-Licenses directory of this source tree. An additional
-//  grant of patent rights can be found in the PATENTS file in the same directory.
-//
-//  Modifications to this file made after 4/13/2017 are: Copyright (c) 2017-present,
-//  Pinterest, Inc.  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
+//  Copyright (c) Facebook, Inc. and its affiliates.  All rights reserved.
+//  Changes after 4/13/2017 are: Copyright (c) Pinterest, Inc.  All rights reserved.
+//  Licensed under Apache 2.0: http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #import <AsyncDisplayKit/ASTableViewInternal.h>
@@ -24,6 +16,8 @@
 #import <AsyncDisplayKit/ASBatchFetching.h>
 #import <AsyncDisplayKit/ASCellNode+Internal.h>
 #import <AsyncDisplayKit/ASCollectionElement.h>
+#import <AsyncDisplayKit/ASCollections.h>
+#import <AsyncDisplayKit/ASConfigurationInternal.h>
 #import <AsyncDisplayKit/ASDelegateProxy.h>
 #import <AsyncDisplayKit/ASDisplayNodeExtras.h>
 #import <AsyncDisplayKit/ASDisplayNode+FrameworkPrivate.h>
@@ -376,8 +370,10 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   
   // Sometimes the UIKit classes can call back to their delegate even during deallocation.
   _isDeallocating = YES;
-  [self setAsyncDelegate:nil];
-  [self setAsyncDataSource:nil];
+  if (!ASActivateExperimentalFeature(ASExperimentalCollectionTeardown)) {
+    [self setAsyncDelegate:nil];
+    [self setAsyncDataSource:nil];
+  }
 
   // Data controller & range controller may own a ton of nodes, let's deallocate those off-main
   ASPerformBackgroundDeallocation(&_dataController);
@@ -445,6 +441,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   
   _dataController.validationErrorSource = asyncDataSource;
   super.dataSource = (id<UITableViewDataSource>)_proxyDataSource;
+  [self _asyncDelegateOrDataSourceDidChange];
 }
 
 - (id<ASTableDelegate>)asyncDelegate
@@ -515,6 +512,22 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   }
   
   super.delegate = (id<UITableViewDelegate>)_proxyDelegate;
+  [self _asyncDelegateOrDataSourceDidChange];
+}
+
+- (void)_asyncDelegateOrDataSourceDidChange
+{
+  ASDisplayNodeAssertMainThread();
+ 
+  if (_asyncDataSource == nil && _asyncDelegate == nil) {
+    if (ASActivateExperimentalFeature(ASExperimentalClearDataDuringDeallocation)) {
+      if (_isDeallocating) {
+        [_dataController clearData];          
+      }
+    } else {
+      [_dataController clearData];
+    }
+  }
 }
 
 - (void)proxyTargetHasDeallocated:(ASDelegateProxy *)proxy
@@ -677,7 +690,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 - (NSArray<ASCellNode *> *)visibleNodes
 {
-  auto elements = [self visibleElementsForRangeController:_rangeController];
+  let elements = [self visibleElementsForRangeController:_rangeController];
   return ASArrayByFlatMapping(elements, ASCollectionElement *e, e.node);
 }
 
@@ -763,7 +776,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
       NSArray<ASCellNode *> *nodes = [_cellsForLayoutUpdates allObjects];
       [_cellsForLayoutUpdates removeAllObjects];
 
-      NSMutableArray<ASCellNode *> *nodesSizeChanged = [NSMutableArray array];
+      let nodesSizeChanged = [[NSMutableArray<ASCellNode *> alloc] init];
       [_dataController relayoutNodes:nodes nodesSizeChanged:nodesSizeChanged];
       if (nodesSizeChanged.count > 0) {
         [self requeryNodeHeights];
@@ -1959,6 +1972,14 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   if (self.superview == nil) {
     _keepalive_node = nil;
   }
+}
+
+#pragma mark - Accessibility overrides
+
+- (NSArray *)accessibilityElements
+{
+  [self waitUntilAllUpdatesAreCommitted];
+  return [super accessibilityElements];
 }
 
 @end
