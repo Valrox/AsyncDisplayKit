@@ -7,11 +7,13 @@
 //
 
 #import <XCTest/XCTest.h>
+
+#import <AsyncDisplayKit/ASAvailability.h>
+#import <AsyncDisplayKit/ASConfiguration.h>
+#import <AsyncDisplayKit/ASConfigurationDelegate.h>
+#import <AsyncDisplayKit/ASConfigurationInternal.h>
+
 #import "ASTestCase.h"
-#import "ASAvailability.h"
-#import "ASConfiguration.h"
-#import "ASConfigurationDelegate.h"
-#import "ASConfigurationInternal.h"
 
 static ASExperimentalFeatures features[] = {
   ASExperimentalGraphicsContexts,
@@ -24,8 +26,9 @@ static ASExperimentalFeatures features[] = {
   ASExperimentalNetworkImageQueue,
   ASExperimentalCollectionTeardown,
   ASExperimentalFramesetterCache,
-  ASExperimentalClearDataDuringDeallocation,
-  ASExperimentalDidEnterPreloadSkipASMLayout
+  ASExperimentalSkipClearData,
+  ASExperimentalDidEnterPreloadSkipASMLayout,
+  ASExperimentalDisableAccessibilityCache
 };
 
 @interface ASConfigurationTests : ASTestCase <ASConfigurationDelegate>
@@ -46,8 +49,9 @@ static ASExperimentalFeatures features[] = {
     @"exp_network_image_queue",
     @"exp_collection_teardown",
     @"exp_framesetter_cache",
-    @"exp_clear_data_during_deallocation",
+    @"exp_skip_clear_data",
     @"exp_did_enter_preload_skip_asm_layout",
+    @"exp_disable_a11y_cache"
   ];
 }
 
