@@ -14,7 +14,7 @@
 #ifdef __i386__
   #define AS_TLS_AVAILABLE 0
 #else
-  #define AS_TLS_AVAILABLE 0
+  #define AS_TLS_AVAILABLE 1
 #endif
 
 #ifndef AS_ENABLE_TEXTNODE
