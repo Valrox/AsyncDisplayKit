@@ -27,8 +27,6 @@
 #pragma mark -
 #pragma mark ASCellNode
 
-#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
-
 @interface ASCellNode ()
 {
   ASDisplayNodeViewControllerBlock _viewControllerBlock;
@@ -54,9 +52,7 @@
 
   // Use UITableViewCell defaults
   _selectionStyle = UITableViewCellSelectionStyleDefault;
-  if(SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"9.0")) {
-    _focusStyle = UITableViewCellFocusStyleDefault;
-  }
+  _focusStyle = UITableViewCellFocusStyleDefault;
   self.clipsToBounds = YES;
 
   return self;
